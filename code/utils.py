@@ -36,9 +36,9 @@ def get_avg_mcc(y_true, y_preds, y_probs):
         y_true_replace_dict[idx] = 1
 
         _y_true = y_true.replace(y_true_replace_dict) # replace current class with 1, others with 0
-        _y_probs = y_probs[idx].T.loc[_y_true.index] # there are fewer y_true examles
+        _y_probs = y_probs[idx].T.loc[_y_true.index] 
 
-        y_probs_rounded = np.rint(_y_probs) # for mmcc
+        y_probs_rounded = np.rint(_y_probs) 
 
         mcc = matthews_corrcoef(y_true=_y_true, y_pred=y_probs_rounded)
         mcc_weight = mcc*(num_class/len(y_true))

@@ -1,4 +1,3 @@
-# Nicholas Nuechterlein
 import pandas as pd
 import numpy as np
 
@@ -20,7 +19,7 @@ def get_centroid(umap_df, scale_df):
 
 def load_reference_umap(umap_filepath='../data/reference_umap_coordinates.csv', normalize = False):
     umap_df = pd.read_csv(umap_filepath)
-    umap_df = umap_df.set_index('coordinate_ID')
+    umap_df = umap_df.set_index('sampleID')
 
     rename_dict = {'UMAP1_2D':'umap_1', 'UMAP2_2D':'umap_2'}
     umap_df = umap_df.rename(columns=rename_dict)

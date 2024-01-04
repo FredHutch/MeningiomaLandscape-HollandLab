@@ -1,4 +1,3 @@
-# Nicholas Nuechterlein
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -22,17 +21,9 @@ def stage1_get_nn_bag_dict_new(umap_embeddings, umap_df, num_nn=100, radius=0.5,
             train_umap_df = umap_embeddings[random_state][patient]['train_umap_dict']
             test_umap_df = umap_embeddings[random_state][patient]['test_umap_dict']
 
-            ##
+            ## normalize training set, apply transformation to new data (test set)
             train_umap_df, mean, dist = normalize_training_umap(train_umap_df)
             test_umap_df = (test_umap_df - mean)/dist
-
-            # data_umap_df = pd.concat([train_umap_df, test_umap_df])
-            
-            # if normalize:
-            #     data_umap_df = get_norm_umap(umap_df=data_umap_df) # normalize UMAP
-
-            # train_umap_df = data_umap_df.loc[train_umap_df.index]
-            # test_umap_df = data_umap_df.loc[test_umap_df.index]
 
             # get nns
             x, y = test_umap_df.values[0]
