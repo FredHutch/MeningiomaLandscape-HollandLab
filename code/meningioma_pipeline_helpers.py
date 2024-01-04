@@ -81,7 +81,7 @@ def get_score_helper(patient,
                                                          patient_mod_perc_common_nn_df=patient_mod_perc_common_nn_df, 
                                                          mod_prec_thresh=mod_prec_thresh)
     
-    # 2) remove outliers (i.e., set them to zero): could just use double the radius?
+    # 2) trim distant points 
     if remove_outliers:
         output = step2_remove_outliers_fn(patient=patient,
                                     umap_df=umap_df, 
@@ -92,7 +92,7 @@ def get_score_helper(patient,
         
         scale_df, scale_df_dict, patient_mod_perc_common_nn_df, base_x_cent, base_y_cent = output
         
-    # 3) remove distant points (i.e., set them to zero)
+    # 3) remove points outside of radius
     if remove_radius:
         scale_df, scale_df_dict = step3_remove_radius_fn(patient=patient, 
                                                    radius=radius, 
