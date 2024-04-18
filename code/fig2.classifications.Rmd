@@ -1,0 +1,148 @@
+title: Color in UMAP by tumor classification methods
+authors: Nayanga Thirimanne
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
+read count file with umap coordinates, merge with metadata
+```{r}
+umap_2d <- read_csv("./1298_umap2d_vst.csv") 
+
+sample_info <-readxl::read_xlsx("~/DAM_data_clinical_patient_v40_20230808a.xlsx", skip = 5)
+sample_info <- sample_info[-1, ]
+sample_info_2 <- sample_info[match(umap_2d$coordinate_ID, sample_info$coordinate_ID), ] 
+
+finaldf = left_join(umap_2d, sample_info_2,by="coordinate_ID" )
+```
+
+UCSF DNA Methylation based classification
+```{r}
+ggplot( finaldf %>% 
+          arrange(desc(factor(UCSF_DNA_METHYLATION_GROUP))),
+        aes(
+          x = UMAP1_2D, 
+          y = UMAP2_2D,
+          color = factor(UCSF_DNA_METHYLATION_GROUP),
+        )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend + 
+  ggtitle("UCSF DNA METHYLATION GROUP") +
+  scale_color_manual(values = c("Hypermitotic" = "red",
+                                "Immune-enriched" = "forestgreen",
+                                "Merlin-intact" = "blue",
+                                "na" = "grey"))
+
+ggsave("UCSF_DNAMethylation_vst_noleg.pdf", height = 7, width = 7)
+```
+
+Baylor RNA Classifier
+```{r}
+ggplot( finaldf %>% 
+          arrange(desc(factor(BAYLOR_RNA_CLASSIFIER))),
+        aes(
+          x = UMAP1_2D, 
+          y = UMAP2_2D,
+          color = factor(BAYLOR_RNA_CLASSIFIER),
+        )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend + 
+  ggtitle("BAYLOR RNA CLASSIFIER") +
+  scale_color_manual(values = c("A/NF2wt_ben" = "blue",
+                                "B/NF2loss_int" = "forestgreen",
+                                "C/NF2loss_mal" = "red",
+                                "na" = "grey"))
+ggsave("BaylorRNAClassifier_vst_noleg.pdf", height = 7, width = 7)
+```
+
+Toronto Methyl Profile Grade
+```{r}
+ggplot( finaldf %>% 
+          arrange(desc(factor(TORONTO_METHYL_PROFILE_GRADE_COCA))),
+        aes(
+          x = UMAP1_2D, 
+          y = UMAP2_2D,
+          color = factor(TORONTO_METHYL_PROFILE_GRADE_COCA),
+        )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend + 
+  ggtitle("TORONTO METHYL PROFILE GRADE") +
+  scale_color_manual(values = c("MG1/Immunogenic" = "chocolate1",
+                                "MG2/Benign_NF2wt" = "blue",
+                                "MG3/Hypermetabolic" = "green4",
+                                "MG4/Proliferative" = "red",
+                                "na" = "grey"))
+ggsave("TorontoMethyl_vst_noleg.pdf", height = 7, width = 7)
+```
+
+
+Ferreira Grade
+```{r}
+ggplot( finaldf %>% 
+          arrange(desc(factor(FERREIRA_GRADE))),
+        aes(
+          x = UMAP1_2D, 
+          y = UMAP2_2D,
+          color = factor(FERREIRA_GRADE),
+        )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend + 
+  ggtitle("FERREIR GRADE") +
+  scale_color_manual(values = c("1" = "gold",
+                                "1.5" = "blue",
+                                "2" = "forestgreen",
+                                "3" = "red",
+                                "na" = "grey"))
+ggsave("FerreiraGrade_vst_noleg.pdf", height = 7, width = 7)
+```
+
+Simpson Grade
+```{r}
+ggplot( finaldf %>% 
+          arrange(desc(factor(SIMPSON_GRADE))),
+        aes(
+          x = UMAP1_2D, 
+          y = UMAP2_2D,
+          color = factor(SIMPSON_GRADE),
+        )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend + 
+  ggtitle("SIMPSON GRADE") +
+  scale_color_manual(values = c("1" = "gold",
+                                "2" = "blue",
+                                "3" = "green3",
+                                "4" = "red",
+                                "na" = "grey"))
+ggsave("SimpsonGrade_vst_noleg.pdf", height = 7, width = 7)
+```
+
+
+Sahm Classification
+```{r}
+ggplot( finaldf %>% 
+          arrange(factor(SAHM_METH_CLASS)),
+        aes(
+          x = UMAP1_2D, 
+          y = UMAP2_2D,
+          color = factor(SAHM_METH_CLASS),
+        )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend + 
+  ggtitle("Sahm classification") +
+  scale_color_manual(values = c("human YAP1fus" = "black",
+                                "NF2 WT Ben-2" = "red",
+                                "NF2 Mut Ben-1" = "blue",
+                                "NF2 Mut Mal" = "green",
+                                "na" = "grey"))
+ggsave("SahmClassification_vst_noleg.pdf", height = 7, width = 7)
+```
+
+
+

@@ -1,0 +1,188 @@
+----------------------
+title: "Differential Gene Expression analysis to determine upregulated genes in each cluster"
+authors: "Nayanga Thirimanne"
+----------------------
+
+```{r}
+library(edgeR)
+```
+
+load cluster IDs from dbscan analysis
+```{r}
+clusterID <- read_csv("./DBSCAN/dbscan2D_un37_vst.csv")
+cluster_1 <- clusterID[clusterID$cluster == "1",]
+cluster_2 <- clusterID[clusterID$cluster == "2",]
+cluster_3 <- clusterID[clusterID$cluster == "3",]
+cluster_4 <- clusterID[clusterID$cluster == "4",]
+cluster_5 <- clusterID[clusterID$cluster == "5",]
+cluster_6 <- clusterID[clusterID$cluster == "6",]
+cluster_7 <- clusterID[clusterID$cluster == "7",]
+```
+
+load batch corrected raw counts
+```{r}
+rawcounts1 <- readRDS("~/1298_combatseq_rawcounts.rds")
+```
+
+remove unclustered samples
+```{r}
+unclust <- clusterID[clusterID$cluster == "0",]
+clusterID <- subset(clusterID, !(clusterID$coordinate_ID %in% unclust$coordinate_ID))
+rawcounts1 <- rawcounts1[, !(colnames(rawcounts1) %in% unclust$coordinate_ID)]
+```
+
+DEG between Cluster A and rest of the samples in the UMAP
+```{r}
+#generate sample dataframe
+sample <- colnames(rawcounts1)
+Adf <- data.frame(sample)
+Adf$group[Adf$sample %in% cluster_1$coordinate_ID] <- 'A'
+Adf$group[!(Adf$sample %in% cluster_1$coordinate_ID)] <- 'All'
+#EdgeR DE analysis: GLM approach (quasi-likelihood F-tests)
+#set group
+group = factor(Adf$group, levels = c("A","All"))
+cols_keep <- Adf$sample
+rawcounts <- rawcounts1[, colnames(rawcounts1) %in% cols_keep]
+y <- DGEList(counts = rawcounts, genes = rownames(rawcounts), samples = colnames(rawcounts), group = group)
+y <- calcNormFactors(y)
+#set design
+design <- model.matrix(~0+group)
+rownames(design) <- colnames(y)
+#estimate the NB disperson for the dataset
+y <- estimateDisp(y, design, robust = TRUE)
+y$common.dispersion
+y$tagwise.dispersion
+plotBCV(y) 
+fit <- glmQLFit(y, design)
+my.contrasts1 <- makeContrasts(AvsAll=groupA-groupAll, levels=design)
+qlf <- glmQLFTest(fit, contrast = my.contrasts1) 
+topTags(qlf)
+W <- as.data.frame(topTags(qlf), n=nrow(y))
+out <- topTags(qlf, n=Inf)
+AvsAll <- as.data.frame(out)
+write.csv(AvsAll, "./DE_dbs_clusterAvsAll_vst_unfilt.csv")
+
+```
+
+DEG between cluster B and all other samples in the UMAP
+```{r}
+#generate sample dataframe
+sample <- colnames(rawcounts1)
+Adf <- data.frame(sample)
+Adf$group[Adf$sample %in% cluster_2$coordinate_ID] <- 'B'
+Adf$group[!(Adf$sample %in% cluster_2$coordinate_ID)] <- 'All'
+#EdgeR DE analysis: GLM approach (quasi-likelihood F-tests)
+#set group
+group = factor(Adf$group, levels = c("B","All"))
+cols_keep <- Adf$sample
+rawcounts <- rawcounts1[, colnames(rawcounts1) %in% cols_keep]
+y <- DGEList(counts = rawcounts, genes = rownames(rawcounts), samples = colnames(rawcounts), group = group)
+y <- calcNormFactors(y)
+#set design
+design <- model.matrix(~0+group)
+rownames(design) <- colnames(y)
+#estimate the NB disperson for the dataset
+y <- estimateDisp(y, design, robust = TRUE)
+y$common.dispersion
+y$tagwise.dispersion
+plotBCV(y) 
+fit <- glmQLFit(y, design)
+my.contrasts1 <- makeContrasts(BvsAll=groupB-groupAll, levels=design)
+qlf <- glmQLFTest(fit, contrast = my.contrasts1) 
+topTags(qlf)
+W <- as.data.frame(topTags(qlf), n=nrow(y))
+out <- topTags(qlf, n=Inf)
+BvsAll <- as.data.frame(out)
+write.csv(BvsAll, "./DE_dbs_clusterBvsAll_vst_unfilt.csv")
+
+```
+
+
+DEG between cluster E and all other samples in the UMAP
+```{r}
+#generate sample dataframe
+sample <- colnames(rawcounts1)
+Adf <- data.frame(sample)
+Adf$group[Adf$sample %in% cluster_5$coordinate_ID] <- 'E'
+Adf$group[!(Adf$sample %in% cluster_5$coordinate_ID)] <- 'All'
+#EdgeR DE analysis: GLM approach (quasi-likelihood F-tests)
+#set group
+group = factor(Adf$group, levels = c("E","All"))
+cols_keep <- Adf$sample
+rawcounts <- rawcounts1[, colnames(rawcounts1) %in% cols_keep]
+y <- DGEList(counts = rawcounts, genes = rownames(rawcounts), samples = colnames(rawcounts), group = group)
+y <- calcNormFactors(y)
+#set design
+design <- model.matrix(~0+group)
+rownames(design) <- colnames(y)
+#estimate the NB disperson for the dataset
+y <- estimateDisp(y, design, robust = TRUE)
+y$common.dispersion
+y$tagwise.dispersion
+plotBCV(y) 
+fit <- glmQLFit(y, design)
+my.contrasts1 <- makeContrasts(EvsAll=groupE-groupAll, levels=design)
+qlf <- glmQLFTest(fit, contrast = my.contrasts1) 
+topTags(qlf)
+W <- as.data.frame(topTags(qlf), n=nrow(y))
+out <- topTags(qlf, n=Inf)
+EvsAll <- as.data.frame(out)
+write.csv(EvsAll, "./DE_dbs_clusterEvsAll_vst_unfilt.csv")
+
+```
+```
+
+
+Above DEG analysis was performed on all the other clusters (e.g. Cluster B vs "All other samples")
+
+
+Pathway enrichment analysis
+```{r}
+DE <- AvsAll
+Upregulated_genes <- DE[DE$logFC <= 0.6 & DE$FDR <= 0.05, ]
+#Upregulated genes in each cluster were run on Enrichr.
+#Gene Ontology Biological Processes (GOBP) terms enriched in each cluster were downloaded from Enrichr
+#Top 15 GOBP terms were plotted as below
+
+plot_title_size = 12
+legend_pt_size = 6
+axis_text_size = 100
+axis_title_size = 15
+legend_text_size = 10
+spacing = 0.5
+chosen_margin = c(0.5,1,0.5,1) #top,right,bottom,left
+
+theme_grid_nolegend <- theme_bw()+
+  theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
+        plot.margin = unit(chosen_margin,"cm"),
+        legend.text = element_text(size=legend_text_size),
+        legend.key.height = unit(spacing,"cm"),
+        legend.position = "none",
+        legend.justification = "left",
+        legend.title = element_blank())
+
+theme_grid_legend <- theme_bw()+
+  theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
+        plot.margin = unit(chosen_margin,"cm"),
+        legend.text = element_text(size=legend_text_size),
+        legend.key.height = unit(spacing,"cm"),
+        legend.position = "right",
+        legend.justification = "left",
+        legend.title = element_text())
+
+En_A <- read.csv("~/Analysis27_DE_1298/Enrichr_output/Enrichr_GO_BP_ClA_edited.csv")
+En_A_2 <- top_n(En_A, n = 15, -p.adjust)
+En_A_2$Term <- str_replace(En_A_2$Term, " \\s*\\([^\\)]+\\)", "")
+En_A_2$Term <- factor(En_A_2$Term, levels = En_A_2$Term)
+ggplot(En_A_2, aes(x=-log10(p.adjust), y= reorder(Term, desc(Term)), size=GeneRatio, color=-log10(p.adjust)))+
+  geom_point(stat = "identity") +
+  scale_color_gradient(low="blue",high="red") +
+  ylab("") +
+  theme_grid_legend +
+  xlab("-log10(p.adjust)")+
+  ggtitle("Cluster A")
+ggsave("ClusterA_leg.pdf", width = 8, height = 3.5)
+
+
+```
+
