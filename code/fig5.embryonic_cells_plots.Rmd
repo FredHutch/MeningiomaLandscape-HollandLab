@@ -1,9 +1,14 @@
 #title: Generate plots to visualize mouse embryonic cell types enriched in each meningioma cluster
 #authors: Nayanga Thirimanne
 
+```{r}
 library(dplyr)
 library(ggplot2)
 
+```
+
+
+```{r}
 #load gene module score for each cluster
 dat = readRDS('~/Analysis33_mouse_embryonic/data.rds')
 gene_module_list = colnames(dat)[1:10]
@@ -36,8 +41,11 @@ major_trajectory_color_plate = c("Neuroectoderm_and_glia"             = "#f96100
                                  "Testis_and_adrenal"        = "#585d3b")
 
 
-### Plot embryonic cell types enriched in each meningioma cluster (median, horizontal plot, without legend) ###
+```
 
+
+Plot embryonic cell types enriched in each meningioma cluster (median, horizontal plot, without legend)
+```{r}
 for(i in 1:10){
   name = gene_module_list[i]
   print(name)
@@ -65,8 +73,11 @@ for(i in 1:10){
                width = 30))
 }
 
-### Plot major cell clusters enriched in each meningioma cluster ###
+```
 
+
+Plot major cell clusters enriched in each meningioma cluster
+```{r}
 dat2 <- dat[, c(1:7,11)]
 datmean <- dat2 %>% group_by(major_cell_cluster) %>%
   summarise(across(everything(), mean),
@@ -75,6 +86,9 @@ datmean <- dat2 %>% group_by(major_cell_cluster) %>%
 
 datmeanlong <- melt(datmean)
 
+```
+
+```{r}
 legend_pt_size = 4
 axis_text_size = 25
 axis_title_size = 25
@@ -91,6 +105,11 @@ theme_legend_em <- theme_classic()+
         legend.justification = "left",
         legend.title = element_blank())
 
+```
+
+
+
+```{r}
 ggplot(datmeanlong, aes(x=variable, y=value, color = major_cell_cluster)) + geom_point(size = 2) +
   labs(x=" ", y="gene module score") +
   theme_legend_em +
@@ -101,6 +120,7 @@ ggplot(datmeanlong, aes(x=variable, y=value, color = major_cell_cluster)) + geom
 
 ggsave("Clusters_embryocelltype_mean_leg.pdf", width = 15, height = 7)
 
+
 ggplot(datmeanlong, aes(x=variable, y=value, color = major_cell_cluster)) + geom_point(size = 2) +
   labs(x=" ", y="gene module score") +
   theme_legend_em +
@@ -110,4 +130,7 @@ ggplot(datmeanlong, aes(x=variable, y=value, color = major_cell_cluster)) + geom
         axis.title = element_text(size = 15, face = "bold")) +
   theme(legend.position = "none")
 ggsave("Clusters_embryocelltype_mean_noleg.pdf", width = 10, height = 7)
+
+```
+
 

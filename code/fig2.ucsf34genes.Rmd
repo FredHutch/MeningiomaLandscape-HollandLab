@@ -1,20 +1,27 @@
-#title: Analysis on UCSF gene signature of 34 genes: GSVA analysis and generating UMAP
-#authors: Nayanga Thirimanne
+-------
+title: "Analysis on UCSF gene signature of 34 genes: GSVA analysis and generating UMAP"
+authors: "Nayanga Thirimanne"
+-------
 
-library(clusterProfiler)
+```{r}
 library(GSVA)
 library(SummarizedExperiment)
 library(GSEABase)
 library(umap)
 library(ggplot2)
+library(clusterProfiler)
+```
 
-
-#load gene lists
-UC <- readxl::read_xlsx("~/UCSF_genepanel_TableS3.xlsx")
+load gene lists
+```{r}
+UC <- readxl::read_xlsx("~/Analysis24_UCSFgenepanel/UCSF_genepanel_TableS3.xlsx")
 UC_E <- UC[UC$Expression_in_meningiomas_with_worse_clinical_outcomes == "Enriched", ] #Upregulated genes
 UC_S <- UC[UC$Expression_in_meningiomas_with_worse_clinical_outcomes == "Suppressed", ] #Downregulated genes
 
-#Categorize and label as Enriched and Suppressed genes (= Upregulated and Downregulated genes respectively)
+```
+
+Categorize and label as Enriched and Suppressed genes (= Upregulated and Downregulated genes respectively)
+```{r}
 UCg <- UC$Gene %>% as.data.frame()
 UCg$term[UCg$. %in% UC_E$Gene] <- "UC_Enriched"
 UCg$term[UCg$. %in% UC_S$Gene] <- "UC_Suppressed"
@@ -24,15 +31,21 @@ UCg <- UCg[, c(2,1)] %>% na.omit(.)
 
 UCg_lst=split(UCg, UCg[,1])
 UCg_lst=lapply(UCg_lst, function(x) x[,2])
+```
 
-# load batch corrected normalized gene counts for 1298 samples
-log2tpm <- readRDS("~/1298samples_combatseq_log2tpm.rds")
+load batch corrected normalized gene counts for 1298 samples
+```{r}
+vstcounts <- readRDS("./batchcor_vstcounts_1298.rds")
+```
 
-#calculate GSVA scores
-UCg_rec <- GSVA::gsva(log2tpm, UCg_lst, min.sz=10, max.sz=500, verbose = TRUE)
+calculate GSVA scores
+```{r}
+UCg_rec <- GSVA::gsva(vstcounts, UCg_lst, min.sz=10, max.sz=500, verbose = TRUE)
+```
 
-#load UMAP coordinates
-umap <- read.csv("~/1298samples_umap2D_041923.csv")
+load UMAP coordinates
+```{r}
+umap <- read.csv("./1298_umap2d_vst.csv")
 
 UCg_rec_t <- UCg_rec %>% 
 t() %>% 
@@ -40,8 +53,11 @@ as.data.frame() %>%
 rownames_to_column(., var = "coordinate_ID")
 
 finaldf_UC <- left_join(umap, UCg_rec_t, by="coordinate_ID")
+```
 
-#plot GSVA scores
+
+plot GSVA scores
+```{r}
 ggplot(finaldf_UC,
        aes(
          x = UMAP1_2D, 
@@ -50,12 +66,15 @@ ggplot(finaldf_UC,
        )
 ) + 
   geom_point(size=1.5) +
-  theme_legend +
+  theme_nolegend +
   ggtitle("UCSF Enriched genes") +
   scale_colour_gradientn(colours = c(low="navyblue",mid="lightyellow", high="red3"), limits=c(-1,1))
 ggsave("UCSF_enrichedgenes_leg.pdf", width = 10, height = 7)
 ggsave("UCSF_enrichedgenes_noleg.pdf", width = 7, height = 7)
 
+```
+
+```{r}
 ggplot(finaldf_UC,
        aes(
          x = UMAP1_2D, 
@@ -64,14 +83,15 @@ ggplot(finaldf_UC,
        )
 ) + 
   geom_point(size=1.5) +
-  theme_legend +
+  theme_nolegend +
   ggtitle("UCSF Suppressed genes") +
   scale_colour_gradientn(colours = c(low="navyblue",mid="lightyellow", high="red3"), limits=c(-1,1)) 
 ggsave("UCSF_suppressedgenes_leg.pdf", width = 10, height = 7)
 ggsave("UCSF_suppressedgenes_noleg.pdf", width = 7, height = 7)
+```
 
-
-#ratio of UC_enriched and UC_suppressed
+ratio of UC_enriched and UC_suppressed
+```{r}
 finaldf_UC$UC_Enriched_edit <- finaldf_UC$UC_Enriched + 1
 finaldf_UC$UC_Suppressed_edit <- finaldf_UC$UC_Suppressed + 1
 finaldf_UC$UC_Ratio <- finaldf_UC$UC_Enriched_edit/finaldf_UC$UC_Suppressed_edit
@@ -84,16 +104,19 @@ ggplot(finaldf_UC,
        )
 ) + 
   geom_point(size=1.5) +
-  theme_legend +
+  theme_nolegend +
   ggtitle("UCSF Ratio (Enriched score:Suppressed score)") +
   scale_colour_gradientn(colours = c(low="khaki",  high="blue4"))
 ggsave("UCSF_Ratio_leg.pdf", width = 10, height = 7)
 ggsave("UCSF_Ratio_noleg.pdf", width = 7, height = 7)
 
 
-# Generating UMAP using UCSF 34 genes and coloring in by metadata
+```
+
+Generating UMAP using UCSF 34 genes and coloring in by metadata
+```{r}
 UCgenes <- c(UC_E$Gene, UC_S$Gene)
-UC_log <- log2_tpm_adjusted[rownames(log2_tpm_adjusted) %in% UCgenes,]
+UC_log <- vstcounts[rownames(vstcounts) %in% UCgenes,]
 umap_out <- umap(t(UC_log), random_state = 123, min_dist = 0.1, metric = 'cosine')
 umap_2d <- data.frame(umap_out$layout) %>%
   tibble::rownames_to_column("samples")
@@ -104,7 +127,9 @@ sample_info <-readxl::read_xlsx("~/DAM_data_clinical_patient_v40_20230808a.xlsx"
 sample_info <- sample_info[-1, ]
 sample_info_2 <- sample_info[match(umap_2d$coordinate_ID, sample_info$coordinate_ID), ] 
 finaldf_UC = left_join(umap_2d, sample_info_2,by="coordinate_ID" )
+```
 
+```{r}
 ggplot( finaldf_UC %>% 
           arrange(factor(WHO_GRADE)),
         aes(
@@ -117,21 +142,23 @@ ggplot( finaldf_UC %>%
   theme_nolegend+
   ggtitle("WHO Grade") + 
   scale_color_manual(values = c(
-    'WHO I' = "orange",
-    'WHO II' = "forestgreen",
-    'WHO III' = "red",
-    "na" = "grey",
-    "human YAP1fus" = "blue"
+    'WHO 1' = "orange",
+    'WHO 2' = "forestgreen",
+    'WHO 3' = "red",
+    "na" = "grey"
   ))
 ggsave("UCSF_34_WHOGRADE_leg.pdf", width = 10, height = 7)
-ggsave("UCSF_34_WHOGRADE_noleg.pdf", width = 7, height = 7)
+ggsave("UCSF_34_WHOGRADE_noleg_vst.pdf", width = 7, height = 7)
+```
 
+
+```{r}
 ggplot( finaldf_UC %>% 
-          arrange(factor(RECURRENT_TUMOR)),
+          arrange(factor(has_the_tumor_reccur)),
         aes(
           x = UMAP1_2D, 
           y = UMAP2_2D,
-          color = factor(RECURRENT_TUMOR),
+          color = factor(has_the_tumor_reccur),
         )
 ) + 
   geom_point(size=1.5) +
@@ -143,8 +170,10 @@ ggplot( finaldf_UC %>%
     "yes" = "blue"
   ))
 ggsave("UCSF_34_Recurrent_leg.pdf", width = 10, height = 7)
-ggsave("UCSF_34_Recurrent_noleg.pdf", width = 7, height = 7)
+ggsave("UCSF_34_Recurrent_noleg_vst.pdf", width = 7, height = 7)
+```
 
+```{r}
 ggplot( finaldf_UC %>% 
           arrange(factor(CHR22LOSS)),
         aes(
@@ -162,8 +191,11 @@ ggplot( finaldf_UC %>%
     "yes" = "blue"
   ))
 ggsave("UCSF_34_Chr22loss_leg.pdf", width = 10, height = 7)
-ggsave("UCSF_34_Chr22loss_noleg.pdf", width = 7, height = 7)
+ggsave("UCSF_34_Chr22loss_noleg_vst.pdf", width = 7, height = 7)
 
+```
+
+```{r}
 ggplot( finaldf_UC %>% 
           arrange(factor(UCSF_DNA_METHYLATION_GROUP)),
         aes(
@@ -182,4 +214,7 @@ ggplot( finaldf_UC %>%
     "na" = "grey"
   ))
 ggsave("UCSF_34_UCSFDNAMethylation_leg.pdf", width = 10, height = 7)
-ggsave("UCSF_34_UCSFDNAMethylation_noleg.pdf", width = 7, height = 7)
+ggsave("UCSF_34_UCSFDNAMethylation_noleg_vst.pdf", width = 7, height = 7)
+```
+
+

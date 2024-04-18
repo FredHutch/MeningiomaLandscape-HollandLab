@@ -1,48 +1,74 @@
+-----------------------------
+title: "GSVA analysis on biological pathway"s 
+authors: "Nayanga Thirimanne"
+-----------------------------
 
-#title: GSVA analysis on biological pathways 
-#authors: Nayanga Thirimanne
-
+```{r}
 library(ggplot2)
 library(clusterProfiler)
 library(GSVA)
 library(SummarizedExperiment)
 library(GSEABase)
-library(edgeR)
+library(RColorBrewer)
 
-setwd("/Meningioma_bulkrnaseq_datasets/msigdb_v7.2_GMTs/")
+```
+
+```{r}
+setwd("~/Meningioma_bulkrnaseq_datasets/msigdb_v7.2_GMTs/")
+#kegg_db <- read.gmt("c2.cp.kegg.v7.2.symbols.gmt")
 biocarta_db <- read.gmt("c2.cp.biocarta.v7.2.symbols.gmt")
+#reactome_db <- read.gmt("c2.cp.reactome.v7.2.symbols.gmt")
 gobp_db <- read.gmt("c5.go.bp.v7.2.symbols.gmt")
+```
 
 
+```{r}
 biocarta_lst=split(biocarta_db, biocarta_db[,1])
 biocarta_lst=lapply(biocarta_lst, function(x) x[,2])
 
-
 gobp_lst=split(gobp_db, gobp_db[,1])
 gobp_lst=lapply(gobp_lst, function(x) x[,2])
+```
 
-#load normalized gene counts
-my_mat <- readRDS("~/1298samples_combatseq_log2tpm.rds")
+
+load normalized gene counts
+```{r}
+setwd("./")
+my_mat <- readRDS("./batchcor_vstcounts_1298.rds")
 
 biocarta_res <- GSVA::gsva(my_mat, biocarta_lst, min.sz=10, max.sz=500, verbose=TRUE)
 gobp_res <- GSVA::gsva(my_mat, gobp_lst, min.sz=10, max.sz=500, verbose=TRUE)
+```
 
-score=rbind(biocarta_res, gobp_res)
-saveRDS(score, "~/1298_gsvascored_biocarta.gobp.rds")
+```{r}
 
-## Color in UMAP by GSVA scores for specific pathways ##
+saveRDS(gobp_res, "./1298_gsva_gobp_vst.rds")
+saveRDS(biocarta_res, "./1298_gsva_biocarta_vst.rds")
 
+```
+
+```{r}
+score=rbind(biocarta_res,  gobp_res)
+saveRDS(score, "~/1298_gsvascored_kegg.biocarta.reactome.gobp.rds")
+```
+
+Color in UMAP by GSVA scores for specific pathways
+```{r}
 #load UMAP coordinates
-umap <- read.csv("~/1298samples_umap2D_041923.csv")
+umap <- read.csv("./1298_umap2d_vst.csv")
 #load GSVA scores
-gsva_1271 <- readRDS("~/1298_gsvascores_gobp.rds")
+gsva_1271 <- readRDS("./1298_gsva_gobp_vst.rds")
 gsva_1271.t <- t(gsva_1271)
 gsva_1271.t <- cbind(rownames(gsva_1271.t), data.frame(gsva_1271.t, row.names = NULL))
 colnames(gsva_1271.t)[1] <- "coordinate_ID"
+```
 
-myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
+```{r}
+myPalette <- rev(brewer.pal(11, "RdYlBu"))
+```
 
-#GOBP: Cell Cycle DNA Replication 
+GOBP: Cell Cycle DNA Replication 
+```{r}
 gsva_1271_2 <- gsva_1271.t[ , c("coordinate_ID", "GO_CELL_CYCLE_DNA_REPLICATION")]
 finaldf_genes <- left_join(finaldf, gsva_1271_2, by="coordinate_ID")
 ggplot(finaldf_genes %>% arrange(GO_CELL_CYCLE_DNA_REPLICATION),
@@ -55,11 +81,14 @@ ggplot(finaldf_genes %>% arrange(GO_CELL_CYCLE_DNA_REPLICATION),
   geom_point(size=1.5) +
   theme_nolegend +
   ggtitle("CELL CYCLE DNA REPLICATION") +
-  scale_colour_gradientn(colours = myPalette(11), limits=c(-1,1))
-ggsave("GO_CELLCYCLE.pdf", width = 7, height = 7)
+  scale_colour_gradientn(colours = myPalette, limits=c(-1,1))
+#ggsave("GO_CELLCYCLE.pdf", width = 7, height = 7)
 ggsave("GO_CELLCYCLE_noleg.pdf", width = 7, height = 7)
+```
 
-#GOBP: Neurotransmitter secretion
+
+GOBP: Neurotransmitter secretion
+```{r}
 gsva_1271_2 <- gsva_1271.t[ , c("coordinate_ID", "GO_NEUROTRANSMITTER_SECRETION")]
 finaldf_genes <- left_join(finaldf, gsva_1271_2, by="coordinate_ID")
 ggplot(finaldf_genes,
@@ -70,13 +99,15 @@ ggplot(finaldf_genes,
        )
 ) + 
   geom_point(size=1.5) +
-  theme_legend +
+  theme_nolegend +
   ggtitle("NEUROTRANSMITTER SECRETION") +
-  scale_colour_gradientn(colours = myPalette(11), limits=c(-1,1))
-ggsave("GO_NEUROTRANSMITTER_SECRETION.pdf", width = 7, height = 7)
+  scale_colour_gradientn(colours = myPalette, limits=c(-1,1))
+#ggsave("GO_NEUROTRANSMITTER_SECRETION.pdf", width = 7, height = 7)
 ggsave("GO_NEUROTRANSMITTER_SECRETION_noleg.pdf", width = 7, height = 7)
+```
 
-#GOBP:Antigen Processing and Presentation
+GOBP:Antigen Processing and Presentation
+```{r}
 gsva_1271_2 <- gsva_1271.t[ , c("coordinate_ID", "GO_ANTIGEN_PROCESSING_AND_PRESENTATION")]
 finaldf_genes <- left_join(finaldf, gsva_1271_2, by="coordinate_ID")
 ggplot(finaldf_genes %>% arrange(GO_ANTIGEN_PROCESSING_AND_PRESENTATION),
@@ -87,13 +118,15 @@ ggplot(finaldf_genes %>% arrange(GO_ANTIGEN_PROCESSING_AND_PRESENTATION),
        )
 ) + 
   geom_point(size=1.5) +
-  theme_legend +
+  theme_nolegend +
   ggtitle("ANTIGEN PROCESSING_AND PRESENTATION") +
-  scale_colour_gradientn(colours = myPalette(11), limits=c(-1,1))
-ggsave("GO_ANTIGEN_PROCESSING_AND_PRESENTATION.pdf", width = 7, height = 7)
+  scale_colour_gradientn(colours = myPalette, limits=c(-1,1))
+#ggsave("GO_ANTIGEN_PROCESSING_AND_PRESENTATION.pdf", width = 7, height = 7)
 ggsave("GO_ANTIGEN_PROCESSING_AND_PRESENTATION_noleg.pdf", width = 7, height = 7)
+```
 
-#GOBP: Vasculogenesis
+GOBP: Vasculogenesis
+```{r}
 gsva_1271_2 <- gsva_1271.t[ , c("coordinate_ID", "GO_VASCULOGENESIS")]
 finaldf_genes <- left_join(finaldf, gsva_1271_2, by="coordinate_ID")
 ggplot(finaldf_genes,
@@ -106,7 +139,32 @@ ggplot(finaldf_genes,
   geom_point(size=1.5) +
   theme_nolegend +
   ggtitle("VASCULOGENESIS") +
-  scale_colour_gradientn(colours = myPalette(11), limits=c(-1,1))
-ggsave("GO_VASCULOGENESIS.pdf", width = 7, height = 7)
+  scale_colour_gradientn(colours = myPalette, limits=c(-1,1))
+#ggsave("GO_VASCULOGENESIS.pdf", width = 7, height = 7)
 ggsave("GO_VASCULOGENESIS_noleg.pdf", width = 7, height = 7)
+```
+```{r}
+gsva_1271 <- readRDS("./1298_gsva_biocarta_vst.rds")
+gsva_1271.t <- t(gsva_1271)
+gsva_1271.t <- cbind(rownames(gsva_1271.t), data.frame(gsva_1271.t, row.names = NULL))
+colnames(gsva_1271.t)[1] <- "coordinate_ID"
+gsva_1271_2 <- gsva_1271.t[ , c("coordinate_ID", "BIOCARTA_SHH_PATHWAY")]
+finaldf_genes <- left_join(finaldf, gsva_1271_2, by="coordinate_ID")
+ggplot(finaldf_genes %>% arrange(BIOCARTA_SHH_PATHWAY),
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour=BIOCARTA_SHH_PATHWAY
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend +
+  ggtitle("BIOCARTA SHH PATHWAY") +
+  scale_colour_gradientn(colours = myPalette, limits=c(-1,1))
+
+setwd("./figures/")
+ggsave("BIOCARTA_SHH_PATHWAY.pdf", width = 7, height = 7)
+ggsave("BIOCARTA_SHH_PATHWAY_noleg.pdf", width = 7, height = 7)
+
+```
 

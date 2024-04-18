@@ -1,26 +1,80 @@
-#title: DBSCAN, k-means and hierarchical clustering 
-#authors: Nayanga Thirimanne
+-------------------------
+title: DBSCAN on UMAP 3D coordinates
+authors: Nayanga Thirimanne
+-------------------------
+
+```{r}
+install.packages("umap", lib="/home/hthirima/R/x86_64-pc-linux-gnu-library/4.2", repos="https://cran.rstudio.com")
+```
+
+```{r}
 
 library(dbscan)
 library(ggplot2)
-library(dplyr)
+library(tidyverse)
+library(umap)
+```
 
-########
-#DBSCAN on umap 3D coordinates
-########
+DBSCAN on umap 3D coordinates
+```{r}
+vstcounts <- readRDS("./batchcor_vstcounts_1298.rds")
+umap_out <- umap(t(vstcounts), random_state = 123, min_dist = 0.1, n_components =3, metric = 'cosine')
+umap_3d <- data.frame(umap_out$layout) %>%
+  tibble::rownames_to_column("samples")
+colnames(umap_3d) = c("coordinate_ID","UMAP1_3D", "UMAP2_3D", "UMAP3_3D")
+sample_info <-readxl::read_xlsx("~/DAM_data_clinical_patient_v40_20230808a.xlsx", skip = 5)
+sample_info <- sample_info[-1, ]
+sample_info_2 <- sample_info[match(umap_3d$coordinate_ID, sample_info$coordinate_ID), ] 
+finaldf3d = left_join(umap_3d, sample_info_2,by="coordinate_ID" )
+```
 
-#load UMAP 3D coordinates
-umapcord <- readRDS("~/UMAP_versions/1298samples_umap3D_041923.rds")
+DBSCAN on 3D coordinates
+```{r}
+#cl <- dbscan(finaldf3d[,2:4], eps=0.5, minPts = 11)
+#clust <- cl$cluster
+```
 
-#run dbscan
-cl <- dbscan(umapcord[,2:4], eps=0.5, minPts = 10)
+DBSCAN on umap 2D coordinates
+```{r}
+cl <- dbscan(finaldf[,3:4], eps=0.4, minPts = 11)
 clust <- cl$cluster
+```
 
-# Merge cluster IDs with UMAP 2D coordinates (for plotting purposes)
-finaldf <- readRDS("~/1298samples_umap2D_041923.rds")
+Merge cluster IDs with UMAP 2D coordinates (for plotting purposes)
+```{r}
 finaldf_g <- finaldf %>%
   mutate(cluster = clust) 
+```
 
+```{r}
+plot_title_size = 35
+legend_pt_size = 25
+axis_text_size = 23
+axis_title_size = 27
+legend_text_size = 15
+spacing = 1
+chosen_margin = c(0.5,1,0.5,1) #top,right,bottom,left
+
+theme_legend <- theme_void() +
+  theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
+        plot.margin = unit(chosen_margin,"cm"),
+        legend.text = element_text(size=legend_text_size, face = "bold"),
+        legend.key.height = unit(spacing,"cm"),
+        legend.position = "right",
+        legend.justification = "left",
+        legend.title = element_blank())
+
+theme_nolegend <- theme_void() +
+  theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
+        plot.margin = unit(chosen_margin,"cm"),
+        legend.text = element_text(size=legend_text_size, face = "bold"),
+        legend.key.height = unit(spacing,"cm"),
+        legend.position = "none",
+        legend.justification = "left",
+        legend.title = element_blank())
+```
+
+```{r}
 ggplot(
   finaldf_g,
   aes(
@@ -29,7 +83,9 @@ ggplot(
     color = factor(cluster)
   )
 ) + 
-  geom_point(size=2) +
+  geom_point(size=1.5) +
+  theme_nolegend + 
+  ggtitle("DBSCAN clusters") +
   scale_color_manual(values = c("1" = "green", 
                                 "2" = "blue", 
                                 "3" = "red", 
@@ -40,28 +96,40 @@ ggplot(
                                 "8" = "purple", 
                                 "9" = "pink"
                                 ))
+
+
 table(clust)
+```
 
 
-#######
-#k-means clustering
-#######
+```{r}
+setwd("~/Output_VSTcounts/DBSCAN/")
+ggsave("dbscan_clusters_un37_vst.pdf", height = 7, width = 7)
+write.csv(finaldf_g, "./DBSCAN/dbscan2D_un37_vst.csv")
+```
 
+
+
+k-means clustering
+```{r}
 library(tidyverse)  # data manipulation
 library(cluster)    # clustering algorithms
 library(FactoMineR) # clustering algorithms & visualization
-install.packages("factoextra")
+install.packages("factoextra", lib="/home/hthirima/R/x86_64-pc-linux-gnu-library/4.2", repos="https://cran.rstudio.com")
 library(factoextra)
+```
 
-df21 <- readRDS("~/1298samples_combatseq_log2tpm.rds")
+```{r}
+df21 <- readRDS("./batchcor_vstcounts_1298.rds")
 df <- t(scale(df21))
+```
 
-## determining optimum number of clusters
-# function to compute total within-cluster sum of square 
+determining optimum number of clusters
+function to compute total within-cluster sum of square 
+```{r}
 wss <- function(k) {
   kmeans(df, k, nstart = 10 )$tot.withinss
 }
-
 # Compute and plot wss for k = 1 to k = 15
 k.values <- 1:30
 # extract wss for 2-30 clusters
@@ -70,12 +138,17 @@ plot(k.values, wss_values,
      type="b", pch = 19, frame = FALSE, 
      xlab="Number of clusters K",
      ylab="Total within-clusters sum of squares")
+```
 
+```{r}
 k2 <- kmeans(df, centers = 14, nstart = 25)
 str(k2)
 k2_cluster <- as.data.frame(k2$cluster) %>% rownames_to_column(., "coordinate_ID")
 finaldf_50 <- left_join(finaldf, k2_cluster, by="coordinate_ID")
 
+```
+
+```{r}
 ggplot(
   finaldf_50,
   aes(
@@ -100,16 +173,19 @@ ggplot(
                                 "12" = "orange", 
                                 "13" = "goldenrod4",
                                 "14" = "forestgreen"))
-
+setwd("./figures/")
 ggsave("kmeans_leg.pdf", width = 7, height = 7)
 ggsave("kmeans_noleg.pdf", width = 7, height = 7)
+```
 
+hierarchical clustering 
 
+```{r}
+df21 <- readRDS("./batchcor_vstcounts_1298.rds")
+df <- t(scale(df21))
+```
 
-###########################
-#hierarchical clustering 
-###########################
-
+```{r}
 # Dissimilarity matrix
 d <- dist(df, method = "euclidean")
 # Ward's method
@@ -120,11 +196,15 @@ sub_grp <- cutree(hc5, k = 10)
 table(sub_grp)
 # Plot the obtained dendrogram
 plot(hc5, cex = 0.6, hang = -1)
+```
 
+```{r}
 subgrp <- as.data.frame(sub_grp)
 subgrp <- rownames_to_column(subgrp, var = "coordinate_ID")
 finaldf_e <- left_join(finaldf, subgrp, by="coordinate_ID")
+```
 
+```{r}
 ggplot(
   finaldf_e,
   aes(
@@ -145,7 +225,10 @@ ggplot(
                                 "8" = "purple", 
                                 "9" = "pink",
                                 "10" = "grey"))
-
+setwd("./figures/")
 ggsave("hclust_leg.pdf", width = 7, height = 7)
 ggsave("hclust_noleg.pdf", width = 7, height = 7)
+
+
+```
 

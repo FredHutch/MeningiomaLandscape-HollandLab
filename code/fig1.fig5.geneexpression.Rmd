@@ -1,0 +1,186 @@
+---
+title: "Coloring in UMAP by the expression of specific genes"
+authors: "Nayanga Thirimanne"
+---
+
+```{r}
+library(ggplot2)
+library(RColorBrewer)
+```
+
+ggplot2 specifications
+```{r}
+plot_title_size = 35
+legend_pt_size = 25
+axis_text_size = 23
+axis_title_size = 27
+legend_text_size = 15
+spacing = 1
+chosen_margin = c(0.5,1,0.5,1) #top,right,bottom,left
+
+theme_legend <- theme_void() +
+  theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
+        plot.margin = unit(chosen_margin,"cm"),
+        legend.text = element_text(size=legend_text_size, face = "bold"),
+        legend.key.height = unit(spacing,"cm"),
+        legend.position = "right",
+        legend.justification = "left",
+        legend.title = element_blank())
+
+theme_nolegend <- theme_void() +
+  theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
+        plot.margin = unit(chosen_margin,"cm"),
+        legend.text = element_text(size=legend_text_size, face = "bold"),
+        legend.key.height = unit(spacing,"cm"),
+        legend.position = "none",
+        legend.justification = "left",
+        legend.title = element_blank())
+```
+
+```{r}
+#load UMAP 2D coordinates
+finaldf <- read.csv("./1298_umap2d_vst.csv", check.names = F)
+#load batch corrected normalized gene counts
+vstcounts <- readRDS("./batchcor_vstcounts_1298.rds")
+vstcounts.t <- t(vstcounts)
+vstcounts.t <- cbind(rownames(vstcounts.t), data.frame(vstcounts.t, row.names = NULL))
+colnames(vstcounts.t)[1] <- "coordinate_ID"
+```
+
+```{r}
+vstcounts2 <- vstcounts.t[ , c("coordinate_ID", "NF2")]
+finaldf_genes <- left_join(finaldf, vstcounts2, by="coordinate_ID")
+my.pallette <- (brewer.pal(9, "Reds"))
+ggplot(finaldf_genes,
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour=NF2
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("NF2 Gene Expression") +
+  scale_colour_gradientn(colours = my.pallette)
+ggsave("NF2expression_vst_noleg.pdf", width = 7, height = 7)
+ggsave("NF2expression_vst_noleg.pdf", width = 10, height = 7)
+
+```
+
+
+
+```{r}
+myPalette <- colorRampPalette((brewer.pal(11, "RdYlBu")))
+vstcounts2 <- vstcounts.t[ , c("coordinate_ID", "PTEN")]
+finaldf_genes <- left_join(finaldf, vstcounts2, by="coordinate_ID")
+ggplot(finaldf_genes,
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour=PTEN
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("PTEN") +
+  scale_colour_gradientn(colours = myPalette(11))
+setwd("./figures/")
+ggsave("GENEEXP_PTEN_vst_leg.pdf", width = 7, height = 7)
+
+```
+
+Similar plots were generated for other genes: HOXD13, HAND2, ROBO1, HOXD12
+```{r}
+vstcounts2 <- vstcounts.t[ , c("coordinate_ID", "HOXD13")]
+finaldf_genes <- left_join(finaldf, vstcounts2, by="coordinate_ID")
+my.pallette <- (brewer.pal(9, "Reds"))
+ggplot(finaldf_genes,
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour=HOXD13
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("HOXD13 Gene Expression") +
+  scale_colour_gradientn(colours = my.pallette)
+ggsave("GENEEXP_HOXD13__vst_leg.pdf", width = 7, height = 7)
+```
+
+
+
+```{r}
+vstcounts2 <- vstcounts.t[ , c("coordinate_ID", "HOXD12")]
+finaldf_genes <- left_join(finaldf, vstcounts2, by="coordinate_ID")
+my.pallette <- (brewer.pal(9, "Reds"))
+#finaldf_genes <- finaldf_genes %>% 
+#  dplyr::arrange(desc(HOXD12))
+ggplot(finaldf_genes,
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour = HOXD12
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("HOXD12 Gene Expression") +
+  scale_colour_gradientn(colours = my.pallette)
+ggsave("GENEEXP_HOXD12__vst_leg.pdf", width = 7, height = 7)
+```
+
+```{r}
+vstcounts2 <- vstcounts.t[ , c("coordinate_ID", "HAND2")]
+finaldf_genes <- left_join(finaldf, vstcounts2, by="coordinate_ID")
+my.pallette <- (brewer.pal(9, "Reds"))
+ggplot(finaldf_genes,
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour=HAND2
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("HAND2 Gene Expression") +
+  scale_colour_gradientn(colours = my.pallette)
+ggsave("GENEEXP_HAND2_vst_leg.pdf", width = 7, height = 7)
+```
+
+```{r}
+vstcounts2 <- vstcounts.t[ , c("coordinate_ID", "ROBO1")]
+finaldf_genes <- left_join(finaldf, vstcounts2, by="coordinate_ID")
+my.pallette <- (brewer.pal(9, "Reds"))
+ggplot(finaldf_genes,
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour=ROBO1
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("ROBO1 Gene Expression") +
+  scale_colour_gradientn(colours = my.pallette)
+ggsave("GENEEXP_ROBO1_vst_noleg.pdf", width = 7, height = 7)
+```
+
+```{r}
+vstcounts2 <- vstcounts.t[ , c("coordinate_ID", "SOX11")]
+finaldf_genes <- left_join(finaldf, vstcounts2, by="coordinate_ID")
+my.pallette <- (brewer.pal(9, "Reds"))
+ggplot(finaldf_genes,
+       aes(
+         x = UMAP1_2D, 
+         y = UMAP2_2D,
+         colour=SOX11
+       )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("SOX11 Gene Expression") +
+  scale_colour_gradientn(colours = my.pallette)
+ggsave("GENEEXP_SOX11_vst_leg.pdf", width = 7, height = 7)
+```
+

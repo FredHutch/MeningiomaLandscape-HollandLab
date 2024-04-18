@@ -1,14 +1,24 @@
-#title: Color in UMAP by tumor classification methods
-#authors: Nayanga Thirimanne
+title: Color in UMAP by tumor classification methods
+authors: Nayanga Thirimanne
 
-
+```{r}
 library(ggplot2)
+library(tidyverse)
+```
 
-#read count file with umap coordinates
-finaldf <- read.csv("~/1298samples_umap2D_041923.csv", check.names = FALSE)
+read count file with umap coordinates, merge with metadata
+```{r}
+umap_2d <- read_csv("./1298_umap2d_vst.csv") 
 
+sample_info <-readxl::read_xlsx("~/DAM_data_clinical_patient_v40_20230808a.xlsx", skip = 5)
+sample_info <- sample_info[-1, ]
+sample_info_2 <- sample_info[match(umap_2d$coordinate_ID, sample_info$coordinate_ID), ] 
 
-# UCSF DNA Methylation 
+finaldf = left_join(umap_2d, sample_info_2,by="coordinate_ID" )
+```
+
+UCSF DNA Methylation based classification
+```{r}
 ggplot( finaldf %>% 
           arrange(desc(factor(UCSF_DNA_METHYLATION_GROUP))),
         aes(
@@ -18,14 +28,18 @@ ggplot( finaldf %>%
         )
 ) + 
   geom_point(size=1.5) +
-  theme_legend + 
+  theme_nolegend + 
   ggtitle("UCSF DNA METHYLATION GROUP") +
   scale_color_manual(values = c("Hypermitotic" = "red",
                                 "Immune-enriched" = "forestgreen",
                                 "Merlin-intact" = "blue",
                                 "na" = "grey"))
 
-# Baylor RNA Classifier
+ggsave("UCSF_DNAMethylation_vst_noleg.pdf", height = 7, width = 7)
+```
+
+Baylor RNA Classifier
+```{r}
 ggplot( finaldf %>% 
           arrange(desc(factor(BAYLOR_RNA_CLASSIFIER))),
         aes(
@@ -41,8 +55,11 @@ ggplot( finaldf %>%
                                 "B/NF2loss_int" = "forestgreen",
                                 "C/NF2loss_mal" = "red",
                                 "na" = "grey"))
+ggsave("BaylorRNAClassifier_vst_noleg.pdf", height = 7, width = 7)
+```
 
-# Toronto Methyl Profile Grade
+Toronto Methyl Profile Grade
+```{r}
 ggplot( finaldf %>% 
           arrange(desc(factor(TORONTO_METHYL_PROFILE_GRADE_COCA))),
         aes(
@@ -59,8 +76,12 @@ ggplot( finaldf %>%
                                 "MG3/Hypermetabolic" = "green4",
                                 "MG4/Proliferative" = "red",
                                 "na" = "grey"))
+ggsave("TorontoMethyl_vst_noleg.pdf", height = 7, width = 7)
+```
 
-# Ferreira Grade
+
+Ferreira Grade
+```{r}
 ggplot( finaldf %>% 
           arrange(desc(factor(FERREIRA_GRADE))),
         aes(
@@ -77,8 +98,11 @@ ggplot( finaldf %>%
                                 "2" = "forestgreen",
                                 "3" = "red",
                                 "na" = "grey"))
+ggsave("FerreiraGrade_vst_noleg.pdf", height = 7, width = 7)
+```
 
-# Simpson Grade
+Simpson Grade
+```{r}
 ggplot( finaldf %>% 
           arrange(desc(factor(SIMPSON_GRADE))),
         aes(
@@ -95,8 +119,12 @@ ggplot( finaldf %>%
                                 "3" = "green3",
                                 "4" = "red",
                                 "na" = "grey"))
+ggsave("SimpsonGrade_vst_noleg.pdf", height = 7, width = 7)
+```
 
-# Sahm Classification
+
+Sahm Classification
+```{r}
 ggplot( finaldf %>% 
           arrange(factor(SAHM_METH_CLASS)),
         aes(
@@ -106,11 +134,15 @@ ggplot( finaldf %>%
         )
 ) + 
   geom_point(size=1.5) +
-  theme_legend + 
+  theme_nolegend + 
   ggtitle("Sahm classification") +
   scale_color_manual(values = c("human YAP1fus" = "black",
                                 "NF2 WT Ben-2" = "red",
                                 "NF2 Mut Ben-1" = "blue",
                                 "NF2 Mut Mal" = "green",
                                 "na" = "grey"))
+ggsave("SahmClassification_vst_noleg.pdf", height = 7, width = 7)
+```
+
+
 

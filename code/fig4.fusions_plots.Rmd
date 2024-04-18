@@ -1,54 +1,64 @@
-#title: Visualizing gene fusion calls made using Arriba
-#authors: Nayanga Thirimanne
+----------------
+title: "Visualizing gene fusion calls made using Arriba"
+authors: "Nayanga Thirimanne"
+----------------
 
+```{r}
 library(ggplot2)
+```
 
-plot_title_size = 20
-legend_pt_size = 4
-axis_text_size = 25
-axis_title_size = 25
+```{r}
+plot_title_size = 35
+legend_pt_size = 25
+axis_text_size = 23
+axis_title_size = 27
 legend_text_size = 15
 spacing = 1
 chosen_margin = c(0.5,1,0.5,1) #top,right,bottom,left
 
-theme_legend <- theme_blank()+
+theme_legend <- theme_void() +
   theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
         plot.margin = unit(chosen_margin,"cm"),
         legend.text = element_text(size=legend_text_size, face = "bold"),
         legend.key.height = unit(spacing,"cm"),
         legend.position = "right",
         legend.justification = "left",
-        legend.title = element_blank() )
+        legend.title = element_blank())
 
-
-theme_nolegend <- theme_blank()+
+theme_nolegend <- theme_void() +
   theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
         plot.margin = unit(chosen_margin,"cm"),
-        legend.text = element_text(size=legend_text_size),
+        legend.text = element_text(size=legend_text_size, face = "bold"),
         legend.key.height = unit(spacing,"cm"),
         legend.position = "none",
         legend.justification = "left",
-        legend.title = element_blank() )
+        legend.title = element_blank())
+```
 
-# Calculating fusion burden 
-# Only the high confidence fusions, with atleast one coding gene partner that recur at least twice within dataset were taken into account
-FusJ <- read.csv("~/at_least_one_fusion_gene_are_coding_1249x2896.csv", check.names = FALSE, row.names = 1)
+Calculating fusion burden
+(high confidence fusions, with atleast one coding gene partner, recur at least twice within dataset)
+```{r}
+FusJ <- read.csv("~/data/fusion_results/for_nayanga/at_least_one_fusion_gene_are_coding_1249x2896.csv", check.names = FALSE, row.names = 1)
 FusJ2 <- colSums(FusJ) %>% as.data.frame()
 FusJ2 <- rownames_to_column(FusJ2, "Fusions")
 colnames(FusJ2)[2] <- "Freq"
 FusJ3 <- FusJ2[order(FusJ2$Freq, decreasing = TRUE),]
-FusJ4 <- FusJ3[FusJ3$Freq >=2, ]
+FusJ4 <- FusJ3[FusJ3$Freq >=2, ] #171 fusions
+```
 
-#FusionBurden - calculated
-#only consider fusions that are present at least twice
+FusionBurden - calculated
+only consider fusions that are present at least twice
+```{r}
 FusJ.1 <- FusJ[, colnames(FusJ) %in% FusJ4$Fusions]
-write.csv(FusJ.1, "~/HighConf_ProteinCoding_Rec2_171fusions.csv")
+write.csv(FusJ.1, "~/Analysis23_Fusions/HighConf_ProteinCoding_Rec2_171fusions.csv")
 FusJ5 <- rowSums(FusJ.1) %>% as.data.frame()
 FusJ5 <- rownames_to_column(FusJ5, "coordinate_ID")
 colnames(FusJ5)[2] <- "FusionBurden"
 finaldf_1 <- finaldf[, 1:4]
 finaldf_f <- left_join(finaldf_1, FusJ5, by="coordinate_ID" )
+```
 
+```{r}
 finaldf_f$FusionBurden <- as.numeric(finaldf_f$FusionBurden)
 finaldf_f$FusionBurden_category <- cut(finaldf_f$FusionBurden, breaks = c(-1, 0, 1, 3, 5, 7, 10, 20 ),
                                        labels = c("0", "1", "2-3", "4-5", "6-7", "8-10", "10<"))
@@ -64,9 +74,15 @@ Four <- subset(finaldf_f, finaldf_f$FusionBurden_category == "8-10")
 Five <- subset(finaldf_f, finaldf_f$FusionBurden_category == "10<")
 Six <- subset(finaldf_f, finaldf_f$FusionBurden_category == "na")
 Seven <- subset(finaldf_f, finaldf_f$FusionBurden_category == "0")
+```
 
+```{r}
 finaldf_f$FusionBurden_category <- factor(finaldf_f$FusionBurden_category, levels= c("0", "1-3", "4-5", "6-7", "8-10", "10<"))
 
+```
+
+
+```{r}
 ggplot(finaldf_f,
        aes(
          x = UMAP1_2D, 
@@ -75,7 +91,7 @@ ggplot(finaldf_f,
        )
 ) + 
   geom_point(size=1.5) +
-  theme_nolegend + 
+  theme_legend + 
   ggtitle("Fusion burden") + 
   geom_point(data = Six, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(FusionBurden_category))) +
   geom_point(data = Seven, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(FusionBurden_category))) +
@@ -95,14 +111,18 @@ ggplot(finaldf_f,
     "na"  = "grey80", 
     "0" = "grey80"
   ))
+
+```
+
+```{r}
+setwd("./figures/")
 ggsave("FusionBurden_leg_new_rec2.pdf", width = 10, height = 7)
-ggsave("FusionBurden_noleg_new_rec2.pdf", width = 7, height = 7)
+#ggsave("FusionBurden_noleg_new_rec2.pdf", width = 7, height = 7)
+```
 
-##
-#Plotting fusions of interest
-##
-
-# TRPM3(105635),RP11-563H8.2(37062)--TRPM3
+Plotting fusions of interest
+TRPM3(105635),RP11-563H8.2(37062)--TRPM3
+```{r}
 Fus3 <- rownames_to_column(FusJ, var = "coordinate_ID")
 finaldf_g <- left_join(finaldf_f, Fus3, by="coordinate_ID" ) #finaldf_f from above code
 
@@ -122,7 +142,7 @@ ggplot( finaldf_g %>%
   geom_point(data=FF3, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`TRPM3(105635),RP11-563H8.2(37062)-TRPM3`))) +
   geom_point(data=FF2, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`TRPM3(105635),RP11-563H8.2(37062)-TRPM3`))) +
   geom_point(data=FF, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`TRPM3(105635),RP11-563H8.2(37062)-TRPM3`))) +
-  theme_legend + 
+  theme_nolegend + 
   ggtitle("TRPM3(105635),RP11-563H8.2(37062)-TRPM3") + 
   scale_color_manual(values = c(
     '0' = "grey",
@@ -133,10 +153,13 @@ ggplot( finaldf_g %>%
     "na"  = "grey60"
   ))
 
-ggsave("Fusion_TRPM3_leg.pdf", width = 10, height = 7)
+#ggsave("Fusion_TRPM3_leg.pdf", width = 10, height = 7)
 ggsave("Fusion_TRPM3_noleg.pdf", width = 7, height = 7)
 
-# PARD6B(19948),BCAS4(18151)--BCAS4
+```
+
+PARD6B(19948),BCAS4(18151)--BCAS4
+```{r}
 finaldf_g$`PARD6B(19948),BCAS4(18151)-BCAS4`[is.na(finaldf_g$`PARD6B(19948),BCAS4(18151)-BCAS4`)] <- "na"
 FF <- subset(finaldf_g, finaldf_g$`PARD6B(19948),BCAS4(18151)-BCAS4` == 1) 
 FF2 <- subset(finaldf_g, finaldf_g$`PARD6B(19948),BCAS4(18151)-BCAS4` == 0) 
@@ -153,7 +176,7 @@ ggplot( finaldf_g %>%
   geom_point(data=FF3, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`PARD6B(19948),BCAS4(18151)-BCAS4`))) +
   geom_point(data=FF2, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`PARD6B(19948),BCAS4(18151)-BCAS4`))) +
   geom_point(data=FF, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`PARD6B(19948),BCAS4(18151)-BCAS4`))) +
-  theme_legend + 
+  theme_nolegend + 
   ggtitle("PARD6B(19948),BCAS4(18151)-BCAS4")  +
   scale_color_manual(values = c(
     '0' = "grey",
@@ -164,15 +187,22 @@ ggplot( finaldf_g %>%
     "na"  = "grey60"
   ))
 
-ggsave("Fusion_PARD6B_leg.pdf", width = 10, height = 7)
+#ggsave("Fusion_PARD6B_leg.pdf", width = 10, height = 7)
 ggsave("Fusion_PARD6B_noleg.pdf", width = 7, height = 7)
 
+```
 
-# Plotting NF2 fusions
-FusJ <- read.csv("~/at_least_one_fusion_gene_are_coding_1249x2896.csv", check.names = FALSE, row.names = 1)
+
+Plotting NF2 fusions
+```{r}
+#FusJ <- read.csv("~/at_least_one_fusion_gene_are_coding_1249x2896.csv", check.names = FALSE, row.names = 1)
 FusJ2 <- rownames_to_column(FusJ, "coordinate_ID")
 finaldf <- readRDS("~/1298samples_umap2D_041923.rds")
 finaldf_g <- left_join(finaldf, FusJ2, by = "coordinate_ID")
+
+```
+
+```{r}
 #map all NF2 fusions (high conf, recurring at least twice)
 NF2fusions <- c("na")
 finaldf_g$NF2fusions <- NF2fusions
@@ -204,7 +234,7 @@ ggplot( finaldf_g,
         )
 ) + 
   geom_point(size=2) +
-  theme_nolegend +
+  theme_legend +
   ggtitle("NF2 Fusions")  +
   scale_color_manual(values = c(
     "NF2--SPATA13" = "black", 
@@ -227,4 +257,7 @@ ggplot( finaldf_g,
     "na"  = "grey"
   ))
 ggsave("NF2_fusions_RNAseq__leg.pdf", width = 7, height = 7)
-ggsave("NF2_fusions_RNAseq__noleg.pdf", width = 7, height = 7)
+#ggsave("NF2_fusions_RNAseq__noleg.pdf", width = 7, height = 7)
+
+```
+

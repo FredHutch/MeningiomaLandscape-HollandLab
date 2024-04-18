@@ -1,16 +1,15 @@
-#title: Copy Number Alterations using CaSpER on bulk RNA-Seq
+#title: Copy Number Alterations using CaSpER on RNA-Seq
 #authors: Nayanga Thirimanne
 
 if (!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 BiocManager::install("GenomicRanges")
 
+```{r}
 library(sva)
 library(CaSpER)
 library(GenomicRanges)
-library(ggplot2)
-library(gridExtra)
-library(dplyr)
+library(tidyverse)
 library(edgeR)
 install.packages("survival")
 library(survival)
@@ -18,12 +17,20 @@ install.packages("ggsurvfit")
 library(ggsurvfit)
 install.packages("survminer")
 library(survminer)
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(cowplot)
+```
 
+```{r}
 BiocManager::install("BiocGenerics")
 library(BiocGenerics)
 library(IRanges)
+```
 
-#ggplot2 specifications
+ggplot2 specifications
+```{r}
 plot_title_size = 20
 legend_pt_size = 4
 axis_text_size = 25
@@ -49,17 +56,12 @@ theme_nolegend <- theme_blank()+
         legend.position = "none",
         legend.justification = "left",
         legend.title = element_blank() )
+```
 
 
-
-####
-#Run CaSpER 
-####
-
-# Here we are using hippocampus and frontol cortex normal tumors as controls
-# For normal samples RNA-Seq data was downloaded from GTEX and processed using the same pipelline
-
-#normalize and batch correct meningioma datasets along with GTEX samples
+#### Run CaSpER ####
+normalize and batch correct meningioma datasets along with GTEX samples
+```{r}
 df1 <- readRDS("~/Meningioma_dataset1_538/GSE139652_10/GSE139652_10samples_proteincodingGencode_rawcounts.rds")
 df2 <- readRDS("~/Meningioma_dataset1_538/GSE136661_160/GSE136661_159samples_proteincodingGencode_rawcounts.rds")
 df3 <- readRDS("~/Meningioma_dataset1_538/Holland_cohort_1_101/Hollandcohort1_93samples_proteincodingGencode_rawcounts.rds")
@@ -131,7 +133,7 @@ df50.1 <- df50[, !(colnames(df50) %in% drop)]
 cnvtestdata <- as.matrix(df50.1)
 
 #Cytoband information
-cytoband <- read.delim("~/cytoBand_hg38_ucsc.txt", header = FALSE)
+cytoband <- read.delim("~/Analysis17_CNV/cytoBand_hg38_ucsc.txt", header = FALSE)
 cytoband <- data.frame(V1=gsub("chr", "", cytoband[,1]), V2=cytoband[,2], V3=cytoband[,3], V4=substring(cytoband$V4, 1, 1), stringsAsFactors=F)
 start <- do.call(rbind, lapply(split(cytoband$V2, paste0(cytoband$V1, cytoband$V4)), min))
 end <- do.call(rbind, lapply(split(cytoband$V3, paste0(cytoband$V1, cytoband$V4)), max))
@@ -142,10 +144,10 @@ cytoband$V4[grep("p", cytoband$V4)] <- "p"
 rownames(cytoband) <- NULL
 
 #Centromere information
-centromere <- read.delim("~/centromere_hg38.txt", header = FALSE)
+centromere <- read.delim("~/Analysis17_CNV/centromere_hg38.txt", header = FALSE)
 
 #control sample ids
-controls <- read.csv("~/CaSpER_test/control.sample.id.csv", header = TRUE)
+controls <- read.csv("~/Analysis17_CNV/CaSpER_test/control.sample.id.csv", header = TRUE)
 control.sample.ids <- controls$controls_GTEX
 
 #Annotation data (positions of each gene along each chromosome)
@@ -155,8 +157,7 @@ annotation <- CaSpER::generateAnnotation(id_type="hgnc_symbol", genes=rownames(d
 cnvtestdata <- cnvtestdata[match( annotation$Gene,rownames(cnvtestdata)), ]
 
 #Reading BAFExtract output files
-#baf files of all meningioma samples were in the compile_menin folder
-loh <- CaSpER::readBAFExtractOutput(path="~/CaSpER_Meningioma/compile_menin/", sequencing.type = "bulk", suffix = "baf")
+loh <- CaSpER::readBAFExtractOutput(path="~/Analysis17_CNV/CaSpER_Meningioma/compile_menin/", sequencing.type = "bulk", suffix = "baf")
 
 
 #generate dataframe of loh.name.mapping
@@ -186,7 +187,10 @@ dev.off()
 finalChrMat_GTEX <- finalChrMat[rownames(finalChrMat) %in% controls$controls_GTEX, ]
 CaSpER::plotLargeScaleEvent2(chrMat = finalChrMat_GTEX, fileName = "large.scale.events.1328samples_GTEX_ChrMat_050223.pdf")
 
-# color in UMAP with CNV calls
+```
+
+color in UMAP with CNV calls
+```{r}
 CNVcalls <- as.data.frame(finalChrMat)
 # CNV burden
 CNVcalls$del_calls <- rowSums(finalChrMat == "-1")
@@ -197,12 +201,13 @@ colnames(CNVcalls)[1] <- "coordinate_ID"
 finaldf <- readRDS("~/1298_UMAP2D.rds") #load file with UMAP 2D coordinates
 finaldf_CNV = left_join(finaldf, CNVcalls,by="coordinate_ID" )
 
+CNVcalls <- read.csv("~/Analysis17_CNV/1298_CNVcalls.csv", check.names = FALSE)
+CNVcalls <- CNVcalls[, -c(47:48)]
+finaldf_CNV = left_join(finaldf, CNVcalls,by="coordinate_ID" )
+```
 
-####
-#Color UMAP by CNAs
-####
-
-#CNA burden - deletions
+CNA burden - deletions
+```{r}
 cohort4 <- subset(finaldf_CNV, finaldf_CNV$del_calls >= 0)
 ggplot(
   finaldf_CNV,
@@ -215,47 +220,55 @@ ggplot(
   geom_point(data = cohort4,
              aes(x=UMAP1_2D, y=UMAP2_2D, color=del_calls),  size = 1.5) +
   theme_legend + 
-  scale_colour_gradientn(colours = c(low="lightyellow", high="red3")) +
+  scale_colour_gradientn(colours = c(low="khaki",  high="blue4")) +
   ggtitle("CNA burden: deletions")
+setwd("./figures/")
 ggsave("CNVburden_del_leg.pdf", width = 10, height = 7)
 ggsave("CNVburden_del_noleg.pdf", width = 7, height = 7)
+```
 
-
+```{r}
 # Chr 10q
 finaldf_CNV$`10q`[is.na(finaldf_CNV$`10q`)] <- "na"
 FF <- subset(finaldf_CNV, finaldf_CNV$`10q` == 0) 
 FF2 <- subset(finaldf_CNV, finaldf_CNV$`10q` == 1) 
 FF3 <- subset(finaldf_CNV, finaldf_CNV$`10q` == -1) 
+finaldf_CNV <- as.data.frame(finaldf_CNV)
+
 ggplot(
-  finaldf_CNV %>% arrange(factor(`10q`)),
+  finaldf_CNV,
   aes(
-    x = UMAP1_2D, 
-    y = UMAP2_2D,
-    color = factor(`10q`)
-  )
+      x = UMAP1_2D,
+      y = UMAP2_2D,
+      color = factor('10q')
+      )
 ) + 
   geom_point(size=1.5) +
   geom_point(data=FF, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`10q`))) +
   geom_point(data=FF2, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`10q`))) +
   geom_point(data=FF3, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`10q`))) +
-  theme_legend +
+  theme_nolegend +
   ggtitle("Chr 10q") +
   scale_color_manual(values = c("-1" = "blue",
                                 "1" = "red",
                                 "0" = "grey", 
                                 "na" = "grey"))
 
+```
+
+```{r}
 ggsave("CNV_10q_leg.pdf", width = 10, height = 7)
 ggsave("CNV_10q_noleg.pdf", width = 7, height = 7)
+```
 
-
+```{r}
 # Chr 1p
 finaldf_CNV$`1p`[is.na(finaldf_CNV$`1p`)] <- "na"
 FF <- subset(finaldf_CNV, finaldf_CNV$`1p` == 0) 
 FF2 <- subset(finaldf_CNV, finaldf_CNV$`1p` == 1) 
 FF3 <- subset(finaldf_CNV, finaldf_CNV$`1p` == -1) 
 ggplot(
-  finaldf_CNV %>% arrange(factor(`1p`)),
+  finaldf_CNV,
   aes(
     x = UMAP1_2D, 
     y = UMAP2_2D,
@@ -266,7 +279,7 @@ ggplot(
   geom_point(data=FF, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`1p`))) +
   geom_point(data=FF2, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`1p`))) +
   geom_point(data=FF3, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`1p`))) +
-  theme_legend +
+  theme_nolegend +
   ggtitle("Chr 1p") +
   scale_color_manual(values = c("-1" = "blue",
                                 "1" = "red",
@@ -275,14 +288,17 @@ ggplot(
 ggsave("CNV_1p_leg.pdf", width = 10, height = 7)
 ggsave("CNV_1p_noleg.pdf", width = 7, height = 7)
 
+```
 
+
+```{r}
 # Chr 14q
 finaldf_CNV$`14q`[is.na(finaldf_CNV$`14q`)] <- "na"
 FF <- subset(finaldf_CNV, finaldf_CNV$`14q` == 0) 
 FF2 <- subset(finaldf_CNV, finaldf_CNV$`14q` == 1) 
 FF3 <- subset(finaldf_CNV, finaldf_CNV$`14q` == -1) 
 ggplot(
-  finaldf_CNV %>% arrange(factor(`14q`)),
+  finaldf_CNV,
   aes(
     x = UMAP1_2D, 
     y = UMAP2_2D,
@@ -293,7 +309,7 @@ ggplot(
   geom_point(data=FF, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`14q`))) +
   geom_point(data=FF2, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`14q`))) +
   geom_point(data=FF3, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`14q`))) +
-  theme_nolegend +
+  theme_legend +
   ggtitle("Chr 14q") +
   scale_color_manual(values = c("-1" = "blue",
                                 "1" = "red",
@@ -302,14 +318,16 @@ ggplot(
 ggsave("CNV_14q_leg.pdf", width = 10, height = 7)
 ggsave("CNV_14q_noleg.pdf", width = 7, height = 7)
 
+```
 
+```{r}
 # Chr 22q
 finaldf_CNV$`22q`[is.na(finaldf_CNV$`22q`)] <- "na"
 FF <- subset(finaldf_CNV, finaldf_CNV$`22q` == 0) 
 FF2 <- subset(finaldf_CNV, finaldf_CNV$`22q` == 1) 
 FF3 <- subset(finaldf_CNV, finaldf_CNV$`22q` == -1) 
 ggplot(
-  finaldf_CNV %>% arrange(factor(`22q`)),
+  finaldf_CNV,
   aes(
     x = UMAP1_2D, 
     y = UMAP2_2D,
@@ -326,20 +344,50 @@ ggplot(
                                 "1" = "red",
                                 "0" = "grey", 
                                 "na" = "grey"))
-ggsave("CNV_22q_leg.pdf", width = 10, height = 7)
+#ggsave("CNV_22q_leg.pdf", width = 10, height = 7)
 ggsave("CNV_22q_noleg.pdf", width = 7, height = 7)
 
+```
 
-##
-#Generate UMAPs for all chr arms
-##
+```{r}
+# Chr 6q
+finaldf_CNV$`6q`[is.na(finaldf_CNV$`6q`)] <- "na"
+FF <- subset(finaldf_CNV, finaldf_CNV$`6q` == 0) 
+FF2 <- subset(finaldf_CNV, finaldf_CNV$`6q` == 1) 
+FF3 <- subset(finaldf_CNV, finaldf_CNV$`6q` == -1) 
+ggplot(
+  finaldf_CNV,
+  aes(
+    x = UMAP1_2D, 
+    y = UMAP2_2D,
+    color = factor(`6q`)
+  )
+) + 
+  geom_point(size=1.5) +
+  geom_point(data=FF, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`6q`))) +
+  geom_point(data=FF2, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`6q`))) +
+  geom_point(data=FF3, aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(`6q`))) +
+  theme_legend +
+  ggtitle("Chr 6q") +
+  scale_color_manual(values = c("-1" = "blue",
+                                "1" = "red",
+                                "0" = "grey", 
+                                "na" = "grey"))
+ggsave("CNV_6q_leg.pdf", width = 10, height = 7)
+ggsave("CNV_6q_noleg.pdf", width = 7, height = 7)
+```
+
+Generate UMAPs for each chromosome arm
+```{r}
+CNVcalls <- read.csv("~/Analysis17_CNV/1298_CNVcalls.csv", check.names = FALSE)
+CNVcalls <- CNVcalls[, -c(1,2:33,47:48)]
 
 # Create a PDF file for output
-pdf("SupplementalTable_CNAbyChrArm_1298_2.pdf")
+pdf("SupplementalTable_CNAbyChrArm_1298_vst3.pdf")
 
 # Initialize variables
 plots_per_page <- 16  # 4x4 grid
-total_plots <- ncol(CNVcalls2) - 1  # Excluding the first column
+total_plots <- ncol(CNVcalls) - 1  # Excluding the first column
 
 # Loop through plots
 for (i in seq(1, total_plots, plots_per_page)) {
@@ -350,8 +398,8 @@ for (i in seq(1, total_plots, plots_per_page)) {
   
   # Loop through plots on this page
   for (z in i:end) {
-    ggdf <- cbind(finaldf2, cell = CNVcalls2[, z + 1])  # Skip first column
-    title <- colnames(CNVcalls2)[z + 1]
+    ggdf <- cbind(finaldf, cell = CNVcalls[, z + 1])  # Skip first column
+    title <- colnames(CNVcalls)[z + 1]
     grey = subset(ggdf, ggdf$cell == "0")
     blue = subset(ggdf, ggdf$cell == "-1")
     red = subset(ggdf, ggdf$cell == "1")
@@ -369,7 +417,7 @@ for (i in seq(1, total_plots, plots_per_page)) {
                  aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(cell)), size = 0.8)+
       geom_point(data=blue,
                  aes(x=UMAP1_2D, y=UMAP2_2D, color=factor(cell)), size = 0.8)+
-      theme_blank() +
+      theme_void() +
       theme(legend.position = "none",  # Remove individual legends
             axis.text = element_blank(),  # Remove axis text
             axis.title = element_blank()) +  # Remove axis titles
@@ -381,7 +429,7 @@ for (i in seq(1, total_plots, plots_per_page)) {
     plot_list[[z - i + 1]] <- p
   }
   # Combine plots for this page and arrange in a grid
-  page_plots <- do.call(grid.arrange, c(plot_list, ncol = 4))
+  page_plots <- do.call(grid.arrange, c(plot_list, ncol = 4)) 
   # Create a combined legend for this page
   combined_legend <- get_legend(plot_list[[1]])  # Assuming all plots have the same legend
   # Arrange the plots and legend on the page
@@ -393,11 +441,29 @@ for (i in seq(1, total_plots, plots_per_page)) {
 # Save and close the PDF file
 dev.off()
 
+```
 
-####
-#Kaplan Miere plots on tumors with and without copy number alterations CNA 
-####
+Validating CaSpER calls
+Expression of NF2 gene in samples that have Chr22 loss/gain according to CaSpER 
+```{r}
+CF <- finaldf_CNV[, c("coordinate_ID", "22q")]
+CF <- subset(CF, !(CF$`22q` == "na"))
+NF2_ex <- log2tpm.t[, c("coordinate_ID", "NF2")]
+CF2 <- left_join(CF,NF2_ex, by="coordinate_ID" )
+CF3 <- CF2[order(CF2$`22q`),]
+CF4 <- CF3[, c("coordinate_ID", "NF2")]
+metadata5 <- CF3[, c("coordinate_ID", "22q")]
+CF5 <- CF4 %>% remove_rownames(.) %>% column_to_rownames(var = "coordinate_ID")
+metadata6 <- metadata5 %>% remove_rownames(.) %>% column_to_rownames(var = "coordinate_ID")
+pheatmap(CF5, scale = "column", cluster_rows = FALSE, cluster_cols = FALSE, show_rownames = FALSE,
+         show_colnames = FALSE, annotation_row = metadata6, color=cols)
+ggsave("CNV_22q_NF2expression.pdf", width = 5, height = 5)
+```
 
+
+
+Kaplan Miere plots on CNA
+```{r}
 plot_title_size = 20
 legend_pt_size = 4
 axis_text_size = 15
@@ -417,7 +483,9 @@ theme_KM <- theme_bw()+
         axis.title = element_text(size = axis_title_size, face = "bold")
   )
 mycol <- c("Black", "Blue")
+```
 
+```{r}
 sample_info <-readxl::read_xlsx("~/DAM_data_clinical_patient_v40_20230808a.xlsx", skip=5)
 sample_info <- sample_info[-1,]
 log2tpm <- readRDS("~/1298samples_combatseq_log2tpm.rds")
@@ -431,15 +499,19 @@ timerec$status[timerec$status == "yes"] <- "1"
 timerec$status[timerec$status == "no"] <- "0"
 timerec$time <- as.numeric( timerec$time)
 timerec$status <- as.numeric( timerec$status)
+```
 
-# KM plot for samples with and without 10q loss in cluster A
-CNVcalls <- read.csv("~/1298_CNVcalls.csv", check.names = FALSE)
+KM plot for samples with and without 10q loss 
+```{r}
+CNVcalls <- read.csv("~/Analysis17_CNV/1298_CNVcalls.csv", check.names = FALSE)
 chr10qLoss <- subset(CNVcalls, CNVcalls$`10q` == "-1")
 timerec$chr10qLoss[timerec$coordinate_ID %in% chr10qLoss$coordinate_ID] <- "Yes"
 timerec$chr10qLoss[!(timerec$coordinate_ID %in% chr10qLoss$coordinate_ID)] <- "No"
 #select only tumors in cluster A
 timerec_A <- subset(timerec, timerec$coordinate_ID %in% cluster_A$coordinate_ID)
+```
 
+```{r}
 fitAll <- surv_fit(Surv(time, status) ~ chr10qLoss, data = timerec_A)
 ggsurvplot(fitAll,
            conf.int = FALSE,
@@ -450,15 +522,18 @@ ggsurvplot(fitAll,
            combine = TRUE, 
            ylab = "Recurrence-free Rate", 
            xlab = "Time (months)",ggtheme = theme_KM , palette = mycol) 
+setwd("./figures/")
 ggsave("Chr10qLoss_outcome_leg.pdf", width = 7, height = 7)
+```
 
-# KM plot for samples with and without 6q loss 
-CNVcalls <- read.csv("~/1298_CNVcalls.csv", check.names = FALSE)
-chr6qLoss <- subset(CNVcalls, CNVcalls$`16q` == "-1")
+KM plot for samples with and without 6q loss 
+```{r}
+CNVcalls <- read.csv("~/Analysis17_CNV/1298_CNVcalls.csv", check.names = FALSE)
+chr6qLoss <- subset(CNVcalls, CNVcalls$`6q` == "-1")
 timerec$chr6qLoss[timerec$coordinate_ID %in% chr6qLoss$coordinate_ID] <- "Yes"
 timerec$chr6qLoss[!(timerec$coordinate_ID %in% chr6qLoss$coordinate_ID)] <- "No"
 #select only tumors in cluster A
-timerec_A <- subset(timerec, timerec$coordinate_ID %in% cluster_A$coordinate_ID)
+timerec_A <- subset(timerec, timerec$coordinate_ID %in% cluster_1$coordinate_ID)
 
 fitAll <- surv_fit(Surv(time, status) ~ chr6qLoss, data = timerec_A)
 ggsurvplot(fitAll,
@@ -470,16 +545,19 @@ ggsurvplot(fitAll,
            combine = TRUE, 
            ylab = "Recurrence-free Rate", 
            xlab = "Time (months)",ggtheme = theme_KM , palette = mycol) 
+setwd("./figures/")
 ggsave("Chr6qLoss_outcome_leg.pdf", width = 7, height = 7)
+```
 
 
-# KM plot for samples with and without 22q loss 
-CNVcalls <- read.csv("~/1298_CNVcalls.csv", check.names = FALSE)
+KM plot for samples with and without 22q loss 
+```{r}
+CNVcalls <- read.csv("~/Analysis17_CNV/1298_CNVcalls.csv", check.names = FALSE)
 chr22qLoss <- subset(CNVcalls, CNVcalls$`22q` == "-1")
 timerec$chr22qLoss[timerec$coordinate_ID %in% chr22qLoss$coordinate_ID] <- "Yes"
 timerec$chr22qLoss[!(timerec$coordinate_ID %in% chr22qLoss$coordinate_ID)] <- "No"
 #select only tumors in cluster A
-timerec_A <- subset(timerec, timerec$coordinate_ID %in% cluster_A$coordinate_ID)
+timerec_A <- subset(timerec, timerec$coordinate_ID %in% cluster_1$coordinate_ID)
 fitAll <- surv_fit(Surv(time, status) ~ chr22qLoss, data = timerec)
 ggsurvplot(fitAll,
            conf.int = FALSE,
@@ -490,15 +568,19 @@ ggsurvplot(fitAll,
            combine = TRUE, 
            ylab = "Recurrence-free Rate", 
            xlab = "Time (months)",ggtheme = theme_KM , palette = mycol) 
+setwd("./")
 ggsave("Chr22qLoss_outcome_leg.pdf", width = 7, height = 7)
 
-# KM plot for samples with and without 14q loss 
-CNVcalls <- read.csv("~/1298_CNVcalls.csv", check.names = FALSE)
+```
+
+KM plot for samples with and without 14q loss 
+```{r}
+CNVcalls <- read.csv("~/Analysis17_CNV/1298_CNVcalls.csv", check.names = FALSE)
 chr14qLoss <- subset(CNVcalls, CNVcalls$`14q` == "-1")
 timerec$chr14qLoss[timerec$coordinate_ID %in% chr14qLoss$coordinate_ID] <- "Yes"
 timerec$chr14qLoss[!(timerec$coordinate_ID %in% chr14qLoss$coordinate_ID)] <- "No"
 #select only tumors in cluster A
-timerec_A <- subset(timerec, timerec$coordinate_ID %in% cluster_A$coordinate_ID)
+timerec_A <- subset(timerec, timerec$coordinate_ID %in% cluster_1$coordinate_ID)
 
 fitAll <- surv_fit(Surv(time, status) ~ chr14qLoss, data = timerec_A)
 ggsurvplot(fitAll,
@@ -510,6 +592,7 @@ ggsurvplot(fitAll,
            combine = TRUE, 
            ylab = "Recurrence-free Rate", 
            xlab = "Time (months)",ggtheme = theme_KM , palette = mycol) 
+setwd("./")
 ggsave("Chr14qLoss_outcome_leg.pdf", width = 7, height = 7)
-
+```
 

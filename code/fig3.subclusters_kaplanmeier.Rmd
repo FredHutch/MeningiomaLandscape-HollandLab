@@ -1,0 +1,435 @@
+-----------------------------
+title: "Coloring main clusters and subclusters in the UMAP and generating Kaplan Miere plots "
+authors: "Nayanga Thirimanne"
+-----------------------------
+
+```{r}
+library(ggplot2)
+library(xlsx)
+library(dplyr)
+install.packages("survival")
+library(survival)
+install.packages("ggsurvfit", lib="/home/hthirima/R/x86_64-pc-linux-gnu-library/4.2", repos="https://cran.rstudio.com")
+library(ggsurvfit)
+install.packages("survminer", lib="/home/hthirima/R/x86_64-pc-linux-gnu-library/4.2", repos="https://cran.rstudio.com")
+library(survminer)
+
+```
+
+```{r}
+sample_info <- readxl::read_xlsx("~/DAM_data_clinical_patient_v40_20230808a.xlsx", skip=5)
+sample_info <- sample_info[-1,]
+vstcounts <- readRDS("./batchcor_vstcounts_1298.rds")
+sample_1298 <- subset(sample_info, sample_info$coordinate_ID %in% colnames(vstcounts))
+sample_timetorec <- subset(sample_1298, !(sample_1298$has_the_tumor_progressed == "yes")) %>% subset(., !(.$time_for_KM_final == "na"))
+```
+
+```{r}
+time_rec <- sample_timetorec[, c("coordinate_ID","time_for_KM_final", "has_the_tumor_reccur")]
+colnames(time_rec) <- c("coordinate_ID", "time", "status")
+#remove samples with status=na
+timerec <- subset(time_rec, !(time_rec$status == "na")) %>% subset(., !(.$time == "na"))
+timerec$status[timerec$status == "yes"] <- "1"
+timerec$status[timerec$status == "no"] <- "0"
+timerec$time <- as.numeric( timerec$time)
+timerec$status <- as.numeric( timerec$status)
+```
+
+KM for each main cluster
+```{r}
+clusterID <- read.csv("./DBSCAN/dbscan2D_un37_vst.csv", check.names = FALSE)
+
+cluster_1 <- clusterID[clusterID$cluster == "1",]
+cluster_2 <- clusterID[clusterID$cluster == "2",]
+cluster_3 <- clusterID[clusterID$cluster == "3",]
+cluster_4 <- clusterID[clusterID$cluster == "4",]
+cluster_5 <- clusterID[clusterID$cluster == "5",]
+cluster_6 <- clusterID[clusterID$cluster == "6",]
+cluster_7 <- clusterID[clusterID$cluster == "7",]
+```
+
+```{r}
+
+timerec$cluster[timerec$coordinate_ID %in% cluster_1$coordinate_ID] <- "A"
+timerec$cluster[timerec$coordinate_ID %in% cluster_2$coordinate_ID] <- "B"
+timerec$cluster[timerec$coordinate_ID %in% cluster_3$coordinate_ID] <- "C"
+timerec$cluster[timerec$coordinate_ID %in% cluster_4$coordinate_ID] <- "D"
+timerec$cluster[timerec$coordinate_ID %in% cluster_5$coordinate_ID] <- "E"
+timerec$cluster[timerec$coordinate_ID %in% cluster_6$coordinate_ID] <- "F"
+timerec$cluster[timerec$coordinate_ID %in% cluster_7$coordinate_ID] <- "G"
+timerec <- na.omit(timerec)
+
+timerec$AB[timerec$cluster == "A"] <- "A"
+timerec$AB[timerec$cluster == "B"] <- "B"
+timerec$BC[timerec$cluster == "C"] <- "C"
+timerec$BC[timerec$cluster == "B"] <- "B"
+timerec$DE[timerec$cluster == "D"] <- "D"
+timerec$DE[timerec$cluster == "E"] <- "E"
+timerec$EF[timerec$cluster == "F"] <- "F"
+timerec$EF[timerec$cluster == "E"] <- "E"
+timerec$CF[timerec$cluster == "C"] <- "C"
+timerec$CF[timerec$cluster == "F"] <- "F"
+timerec$CD[timerec$cluster == "C"] <- "C"
+timerec$CD[timerec$cluster == "D"] <- "D"
+timerec$CE[timerec$cluster == "C"] <- "C"
+timerec$CE[timerec$cluster == "E"] <- "E"
+timerec$BD[timerec$cluster == "D"] <- "D"
+timerec$BD[timerec$cluster == "B"] <- "B"
+timerec$BE[timerec$cluster == "E"] <- "E"
+timerec$BE[timerec$cluster == "B"] <- "B"
+timerec$BF[timerec$cluster == "F"] <- "F"
+timerec$BF[timerec$cluster == "B"] <- "B"
+timerec$AC[timerec$cluster == "A"] <- "A"
+timerec$AC[timerec$cluster == "C"] <- "C"
+timerec$AG[timerec$cluster == "A"] <- "A"
+timerec$AG[timerec$cluster == "G"] <- "G"
+timerec$G[timerec$cluster == "G"] <- "G"
+```
+
+```{r}
+fit1 <- surv_fit(Surv(time, status) ~ AB, data = timerec)
+fit2 <- surv_fit(Surv(time, status) ~ BC, data = timerec)
+fit3 <- surv_fit(Surv(time, status) ~ DE, data = timerec)
+fit4 <- surv_fit(Surv(time, status) ~ EF, data = timerec)
+fit5 <- surv_fit(Surv(time, status) ~ CF, data = timerec)
+fit6 <- surv_fit(Surv(time, status) ~ CD, data = timerec)
+fit7 <- surv_fit(Surv(time, status) ~ CE, data = timerec)
+fit8 <- surv_fit(Surv(time, status) ~ BD, data = timerec)
+fit9 <- surv_fit(Surv(time, status) ~ BE, data = timerec)
+fit10 <- surv_fit(Surv(time, status) ~ BF, data = timerec)
+fit11 <- surv_fit(Surv(time, status) ~ AC, data = timerec)
+fit12 <- surv_fit(Surv(time, status) ~ AG, data = timerec)
+
+```
+
+```{r}
+fitAll <- surv_fit(Surv(time, status) ~ cluster, data = timerec)
+
+fit.list <- list(AB = fit1, BC = fit2, DE = fit3, EF = fit4, CF = fit5, CD = fit6, CE = fit7, BD = fit8, 
+                 BE = fit9, BF = fit10, AC = fit11, AG = fit12)
+surv_pvalue(fit.list)
+
+```
+
+```{r}
+plot_title_size = 35
+legend_pt_size = 25
+axis_text_size = 23
+axis_title_size = 27
+legend_text_size = 15
+spacing = 1
+chosen_margin = c(0.5,1,0.5,1) #top,right,bottom,left
+
+
+theme_KM <- theme_bw()+
+  theme(plot.title = element_text(hjust=0, vjust=0, lineheight=.8, face="bold", size=plot_title_size),
+        plot.margin = unit(chosen_margin,"cm"),
+        legend.text = element_text(size=legend_text_size, face = "bold"),
+        legend.key.height = unit(spacing,"cm"),
+        legend.position = "top",
+        legend.justification = "left",
+        legend.title = element_blank() ,
+        axis.text = element_text(size = axis_text_size, face = "bold"),
+        axis.title = element_text(size = axis_title_size, face = "bold")
+  )
+mycol <- c("Green", "Blue", "Red", "Black", "Brown", "Gold", "Cyan", "Purple")
+
+ggsurvplot(fitAll,
+           conf.int = FALSE,
+           data = timerec,
+           pval = FALSE,
+           pval.method = FALSE,
+           risk.table = FALSE, 
+           combine = TRUE, 
+           ylab = "Recurrence-free Rate", 
+           xlab = "Time (months)",ggtheme = theme_KM , palette = mycol) 
+setwd("./figures/")
+ggsave("KM_allmajorclusters.pdf", width = 7, height = 7)
+
+```
+
+
+SUBCLUSTERS
+
+Cluster A
+load samples in each subcluster from Oncoscape
+```{r}
+A2Onc <- read.csv("./ClusterA_subA2_Onc.csv")
+A2Onc$Patient <- toupper(A2Onc$Patient)
+SampleNewID #Deidentified samples
+A2 <- left_join(A2Onc, SampleNewID, by = "Patient" )
+A1 <- subset(cluster_1, !(cluster_1$coordinate_ID %in% A2$coordinate_ID) )
+```
+
+```{r}
+A2Onc <- read.csv("./ClusterA_subA2_Onc.csv")
+A2Onc$Patient <- toupper(A2Onc$Patient)
+SampleNewID #Deidentified samples
+A2 <- left_join(A2Onc, SampleNewID, by = "Patient" )
+
+A1 <- subset(cluster_1, !(cluster_1$coordinate_ID %in% A2$coordinate_ID) )
+
+finaldf_A <- finaldf
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% A1$coordinate_ID] <- "A1"
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% A2$coordinate_ID] <- "A2"
+finaldf_A$Afinal[is.na(finaldf_A$Afinal)] <- "na"
+```
+
+```{r}
+ggplot(
+  finaldf_A,
+  aes(
+    x = UMAP1_2D, 
+    y = UMAP2_2D,
+    color = Afinal
+  )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  ggtitle("Cluster A") +
+  scale_color_manual(values = c("A1" = "gold", 
+                                "A2" = "blue", 
+                                "na" = "grey"))
+setwd("./figures/")
+ggsave("Subcluster_A_UMAP_vst_noleg.pdf", width = 7, height = 7)
+ggsave("Subcluster_A_UMAP_vst_leg.pdf", width = 10, height = 7)
+
+```
+
+```{r}
+time_rec <- sample_timetorec[, c("coordinate_ID","time_for_KM_final", "has_the_tumor_reccur")]
+colnames(time_rec) <- c("coordinate_ID", "time", "status")
+#remove samples with status=na
+timerec <- subset(time_rec, !(time_rec$status == "na")) %>% subset(., !(.$time == "na"))
+timerec$status[timerec$status == "yes"] <- "1"
+timerec$status[timerec$status == "no"] <- "0"
+timerec$time <- as.numeric( timerec$time)
+timerec$status <- as.numeric( timerec$status)
+```
+
+```{r}
+timerec$cluster[timerec$coordinate_ID %in% A1$coordinate_ID] <- "A1"
+timerec$cluster[timerec$coordinate_ID %in% A2Onc_n$coordinate_ID] <- "A2"
+```
+
+```{r}
+timerec$A12[timerec$cluster == "A1"] <- "A1"
+timerec$A12[timerec$cluster == "A2"] <- "A2"
+```
+
+```{r}
+fit1 <- surv_fit(Surv(time, status) ~ A12, data = timerec)
+
+fit.list <- list( A12 = fit1)
+surv_pvalue(fit.list)
+
+```
+
+
+```{r}
+fitAll <- surv_fit(Surv(time, status) ~ cluster, data = timerec)
+mycol <- c("Gold", "Blue", "Red", "Purple", "Brown", "Yellow", "Cyan", "Purple")
+ggsurvplot(fitAll,
+           conf.int = FALSE,
+           data = timerec,
+           pval = FALSE,
+           pval.method = FALSE,
+           risk.table = FALSE, 
+           combine = TRUE, 
+           ylab = "Recurrence-free Rate", 
+           xlab = "Time (months)", ggtheme = theme_KM, palette = mycol)
+setwd("./figures/")
+ggsave("KM_subcluster_A_vst.pdf", width = 7, height = 7)
+```
+
+CLUSTER C
+load samples in each subcluster from Oncoscape
+```{r}
+C1Onc <- read.csv("./ClusterC_subC1_Onc.csv")
+C2Onc <- read.csv("./ClusterC_subC2_Onc.csv")
+C3Onc <- read.csv("./ClusterC_subC3_Onc.csv")
+
+C1Onc$Patient <- toupper(C1Onc$Patient)
+C2Onc$Patient <- toupper(C2Onc$Patient)
+C3Onc$Patient <- toupper(C3Onc$Patient)
+
+SampleNewID #Deidentified samples
+C1 <- left_join(C1Onc, SampleNewID, by = "Patient")
+C2 <- left_join(C2Onc, SampleNewID, by = "Patient")
+C3 <- left_join(C3Onc, SampleNewID, by = "Patient")
+
+C123 <- c(C1$coordinate_ID, C2$coordinate_ID, C3$coordinate_ID)
+
+C4 <- subset(cluster_3, !(cluster_3$coordinate_ID %in% C123) )
+
+```
+
+
+```{r}
+finaldf_A <- finaldf
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% C1$coordinate_ID] <- "C1"
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% C2$coordinate_ID] <- "C2"
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% C3$coordinate_ID] <- "C3"
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% C4$coordinate_ID] <- "C4"
+finaldf_A$Afinal[is.na(finaldf_A$Afinal)] <- "na"
+
+ggplot(
+  finaldf_A,
+  aes(
+    x = UMAP1_2D, 
+    y = UMAP2_2D,
+    color = Afinal
+  )
+) + 
+  geom_point(size=1.5) +
+  theme_legend +
+  scale_color_manual(values = c("C1" = "black",
+                                "C2" = "red", 
+                                "C3" = "green",
+                                "C4" = "blue", 
+                                "na" = "grey"))
+setwd("./figures/")
+ggsave("Subcluster_C_UMAP_vst_noleg.pdf", width = 7, height = 7)
+ggsave("Subcluster_C_UMAP_vst_leg.pdf", width = 10, height = 7)
+
+```
+
+KM plot for cluster C
+```{r}
+time_rec <- sample_timetorec[, c("coordinate_ID","time_for_KM_final", "has_the_tumor_reccur")]
+colnames(time_rec) <- c("coordinate_ID", "time", "status")
+#remove samples with status=na
+timerec <- subset(time_rec, !(time_rec$status == "na")) %>% subset(., !(.$time == "na"))
+timerec$status[timerec$status == "yes"] <- "1"
+timerec$status[timerec$status == "no"] <- "0"
+timerec$time <- as.numeric( timerec$time)
+timerec$status <- as.numeric( timerec$status)
+```
+
+```{r}
+timerec$cluster[timerec$coordinate_ID %in% C1$coordinate_ID] <- "C1"
+timerec$cluster[timerec$coordinate_ID %in% C2$coordinate_ID] <- "C2"
+timerec$cluster[timerec$coordinate_ID %in% C3$coordinate_ID] <- "C3"
+timerec$cluster[timerec$coordinate_ID %in% C4$coordinate_ID] <- "C4"
+```
+
+```{r}
+timerec$C12[timerec$cluster == "C1"] <- "C1"
+timerec$C12[timerec$cluster == "C2"] <- "C2"
+timerec$C34[timerec$cluster == "C3"] <- "C3"
+timerec$C34[timerec$cluster == "C4"] <- "C4"
+timerec$C14[timerec$cluster == "C1"] <- "C1"
+timerec$C14[timerec$cluster == "C4"] <- "C4"
+timerec$C13[timerec$cluster == "C1"] <- "C1"
+timerec$C13[timerec$cluster == "C3"] <- "C3"
+
+fit1 <- surv_fit(Surv(time, status) ~ C12, data = timerec)
+fit2 <- surv_fit(Surv(time, status) ~ C34, data = timerec)
+fit3 <- surv_fit(Surv(time, status) ~ C14, data = timerec)
+fit4 <- surv_fit(Surv(time, status) ~ C13, data = timerec)
+fit.list <- list(C34 = fit2, C12 = fit1, C14 = fit3, C13 = fit4)
+surv_pvalue(fit.list)
+
+fitAll <- surv_fit(Surv(time, status) ~ cluster, data = timerec)
+mycol <- c("Black", "Red", "green", "blue", "Brown", "Yellow", "Cyan", "Purple")
+
+ggsurvplot(fitAll,
+           conf.int = FALSE,
+           data = timerec,
+           pval = FALSE,
+           pval.method = FALSE,
+           risk.table = FALSE, 
+           combine = TRUE, 
+           ylab = "Recurrence-free Rate", 
+           xlab = "Time (months)", ggtheme = theme_KM, palette = mycol)
+setwd("./figures/")
+ggsave("KM_Subcluster_C.pdf", width = 7, height = 7)
+
+```
+
+
+SUBCLUSTERS
+
+Cluster B
+load samples in each subcluster from Oncoscape
+```{r}
+B2Onc <- read.csv("./ClusterB_subB2_Onc.csv")
+B2Onc$Patient <- toupper(B2Onc$Patient)
+SampleNewID #Deidentified samples
+B2 <- left_join(B2Onc, SampleNewID, by = "Patient" )
+B1 <- subset(cluster_2, !(cluster_2$coordinate_ID %in% B2$coordinate_ID) )
+```
+
+```{r}
+finaldf_A <- finaldf
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% B1$coordinate_ID] <- "B1"
+finaldf_A$Afinal[finaldf_A$coordinate_ID %in% B2$coordinate_ID] <- "B2"
+finaldf_A$Afinal[is.na(finaldf_A$Afinal)] <- "na"
+```
+
+```{r}
+ggplot(
+  finaldf_A,
+  aes(
+    x = UMAP1_2D, 
+    y = UMAP2_2D,
+    color = Afinal
+  )
+) + 
+  geom_point(size=1.5) +
+  theme_nolegend +
+  ggtitle("Cluster B") +
+  scale_color_manual(values = c("B1" = "blue", 
+                                "B2" = "red", 
+                                "na" = "grey"))
+setwd("./figures/")
+ggsave("Subcluster_B_UMAP_vst_noleg.pdf", width = 7, height = 7)
+ggsave("Subcluster_B_UMAP_vst_leg.pdf", width = 10, height = 7)
+
+```
+
+```{r}
+time_rec <- sample_timetorec[, c("coordinate_ID","time_for_KM_final", "has_the_tumor_reccur")]
+colnames(time_rec) <- c("coordinate_ID", "time", "status")
+#remove samples with status=na
+timerec <- subset(time_rec, !(time_rec$status == "na")) %>% subset(., !(.$time == "na"))
+timerec$status[timerec$status == "yes"] <- "1"
+timerec$status[timerec$status == "no"] <- "0"
+timerec$time <- as.numeric( timerec$time)
+timerec$status <- as.numeric( timerec$status)
+```
+
+```{r}
+timerec$cluster[timerec$coordinate_ID %in% B1$coordinate_ID] <- "B1"
+timerec$cluster[timerec$coordinate_ID %in% B2$coordinate_ID] <- "B2"
+```
+
+```{r}
+timerec$B12[timerec$cluster == "B1"] <- "B1"
+timerec$B12[timerec$cluster == "B2"] <- "B2"
+```
+
+```{r}
+fit1 <- surv_fit(Surv(time, status) ~ B12, data = timerec)
+
+fit.list <- list( B12 = fit1)
+surv_pvalue(fit.list)
+
+```
+
+
+```{r}
+fitAll <- surv_fit(Surv(time, status) ~ cluster, data = timerec)
+mycol <- c("Blue", "Red", "Red", "Purple", "Brown", "Yellow", "Cyan", "Purple")
+ggsurvplot(fitAll,
+           conf.int = FALSE,
+           data = timerec,
+           pval = FALSE,
+           pval.method = FALSE,
+           risk.table = FALSE, 
+           combine = TRUE, 
+           ylab = "Recurrence-free Rate", 
+           xlab = "Time (months)", ggtheme = theme_KM, palette = mycol)
+setwd("./figures/")
+ggsave("KM_subcluster_B_vst.pdf", width = 7, height = 7)
+```

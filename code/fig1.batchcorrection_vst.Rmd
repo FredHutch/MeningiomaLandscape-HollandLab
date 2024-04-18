@@ -1,12 +1,17 @@
-#title: Combine meningioma datasets, perform batch correction and normalize
-#authors: Nayanga Thirimanne and Sonali Arora
 
+title: Combine meningioma datasets, perform batch correction and normalize
+authors: Nayanga Thirimanne and Sonali Arora
+
+```{r}
 library(sva)
 library(dplyr)
 library(rtracklayer)
 library(edgeR)
+```
 
-##### load rawcounts from each dataset  #####
+
+load rawcounts from each datasets
+```{r}
 df1 <- readRDS("~/Meningioma_dataset1_538/GSE139652_10/GSE139652_10samples_proteincodingGencode_rawcounts.rds")
 df2 <- readRDS("~/Meningioma_dataset1_538/GSE136661_160/GSE136661_159samples_proteincodingGencode_rawcounts.rds")
 df3 <- readRDS("~/Meningioma_dataset1_538/Holland_cohort_1_101/Hollandcohort1_93samples_proteincodingGencode_rawcounts.rds")
@@ -23,7 +28,12 @@ df13 <- readRDS("~/Meningioma_RNASeq_dataset2/HollandUW_3/HollandUW_3_78samples_
 df14 <- readRDS("~/Meningioma_RNASeq_dataset2/GSE212666_HKU/GSE212666_301samples_proteincodingGencode_rawcounts.rds")
 df15 <- readRDS("~/Meningioma_RNASeq_dataset2/CBTN_youngadults/CBTN_28samples_proteincodingGencode_rawcounts.rds")
 
-#####  batch correction #####
+```
+
+
+batch correction
+```{r}
+
 DF2 <- cbind(df1, df2, df3, df4, df5, df6, 
              df7, df8, df9, df10, df11, df12, df13, df14, df15)
 DF2 <- as.data.frame(DF2)
@@ -45,34 +55,18 @@ batch <- c(rep(1, ncol(df1)),
 )
 
 adjusted_raw <- ComBat_seq(as.matrix(DF2), batch=batch, group=NULL)
-adjusted_raw_2 <- as.data.frame(adjusted_raw)
+```
 
-##### select protein coding genes and normalize read counts  #####
-# load gencode gtf file
-gtf <- rtracklayer::import("~/Reference_Genomes/hg38_release39_053122/gencode.v39.primary_assembly.annotation.gtf")
-hg38gtf <- as.data.frame(gtf)
-#extract only important columns and protein coding genes
-hg38gtfsub1 <- hg38gtf[ ,c(1:4,7,10:12)]
-hg38gtfsub2 <- filter(hg38gtfsub1, hg38gtfsub1$gene_type == "protein_coding" & hg38gtfsub1$type == "gene")
-#remove gene_id version number
-hg38gtfsub2$gene_id <- gsub("\\.[0-9]*$", "", hg38gtfsub2$gene_id)
-# select protein coding genes
-AB <- left_join(adjusted_raw_2 %>%
-                  mutate(gene_name = rownames(adjusted_raw_2)), hg38gtfsub2, by="gene_name", multiple = "all")
-AB1 <- dplyr::filter(AB, AB$gene_type == "protein_coding") %>%
-  arrange(gene_name) %>%
-  dplyr::filter(duplicated(gene_name) == FALSE)
-rownames(AB1) <- AB1$gene_name
-drops <- c("gene_id", "seqnames", "start", "end", "strand", "gene_type", "type", "gene_name", "width")
-AB2 <- AB1[ , !(names(AB1) %in% drops)]
-# normalize
-gene_width = AB1$width
-gene_name = rownames(adjusted_raw_2)
-y <- DGEList(counts = adjusted_raw_2)
-rpkm = rpkm(y, gene.length = gene_width)
-rownames(rpkm) = gene_name
-tpm = apply(rpkm, 2, function(x){
-  (x/sum(x))*10^6
-})
-log2_tpm_adjusted =log2(tpm+1) #batch corrected, normalized read counts
+
+vst normalization
+```{r}
+vstcounts <- adjusted_raw %>%
+  as.matrix(.) %>% DESeq2::vst(adjusted_raw)
+```
+
+```{r}
+write.csv(vstcounts, "~/Output_VSTcounts/batchcor_vstcounts_1298.csv")
+write_rds(vstcounts, "~/Output_VSTcounts/batchcor_vstcounts_1298.rds")
+```
+
 
